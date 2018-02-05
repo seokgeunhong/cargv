@@ -1,0 +1,46 @@
+# `sunriset` package
+# ------------------
+
+# static library
+cc_library(
+    name='lib',
+    visibility=['//visibility:public'],
+    includes=[
+        'include',
+    ],
+    hdrs=[
+        'include/sunriset_version.h',
+        'include/sunriset.h',
+    ],
+    srcs=[
+        'src/sunriset.c',
+    ],
+    deps=[
+    ],
+)
+
+# executable binary
+cc_binary(
+    name='main',
+    srcs=[
+        'src/main.c',
+    ],
+    deps=[
+        'lib',
+    ],
+)
+
+# test: all
+test_suite(
+    name='test',
+)
+
+# test: sunriset
+cc_test(
+    name='sunriset_test',
+    timeout='short',
+    tags=[],
+    deps=[
+        '//test:sunriset_test',
+    ],
+)
