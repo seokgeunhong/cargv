@@ -1,0 +1,14 @@
+# `sunriset` tests
+# ----------------
+
+cc_library(
+    name='sunriset_test',
+    visibility=['//visibility:public'],
+    srcs=glob(
+        include=['*_test.cpp'],
+    ),
+    deps=[
+        '//:lib',
+        '@com_google_googletest//:gtest',
+    ],
+)
