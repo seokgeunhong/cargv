@@ -2,13 +2,13 @@
 # ----------------
 
 cc_library(
-    name='sunriset_test',
+    name='test-sunriset',
     visibility=['//visibility:public'],
     srcs=glob(
         include=['*_test.cpp'],
     ),
     deps=[
-        '//:lib',
+        '//:sunriset-static',
         '@com_google_googletest//:gtest',
     ],
 )

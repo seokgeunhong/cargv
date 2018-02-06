@@ -3,7 +3,7 @@
 
 # static library
 cc_library(
-    name='lib',
+    name='sunriset-static',
     visibility=['//visibility:public'],
     includes=[
         'include',
@@ -15,32 +15,42 @@ cc_library(
     srcs=[
         'src/sunriset.c',
     ],
-    deps=[
-    ],
 )
 
 # executable binary
 cc_binary(
-    name='main',
+    name='sunriset',
     srcs=[
+        'include/sunriset_option.h',
         'src/main.c',
+        'src/option.c',
     ],
     deps=[
-        'lib',
+        'sunriset-static',
+        'cline',
+    ],
+)
+
+# cline
+cc_library(
+    name='cline',
+    includes=[
+        'include',
+    ],
+    hdrs=[
+        'include/cline.h',
+    ],
+    srcs=[
+        'src/cline.c',
     ],
 )
 
 # test: all
-test_suite(
-    name='test',
-)
-
-# test: sunriset
 cc_test(
-    name='sunriset_test',
+    name='test-all',
     timeout='short',
     tags=[],
     deps=[
-        '//test:sunriset_test',
+        '//test:test-sunriset',
     ],
 )

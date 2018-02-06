@@ -1,6 +1,9 @@
 # `sunriset` workspace
 # ====================
 
+workspace(name='sunriset')
+
+
 # [googletest](https://github.com/google/googletest/)
 # ------------
 #

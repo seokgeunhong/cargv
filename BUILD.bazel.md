@@ -1,20 +1,14 @@
 Build `sunriset` with bazel
-===========================
+=====
+
+This project is written using [bazel](http://www.bazel.build/) 0.10.0.
+
+### Build binary
+
+```bazel build //:sunriset```
+
+Executable `sunriset` or `sunriset.exe` is found under `bazel-bin/`.
 
 ### Run all tests:
 
-```bazel test //:test```
-
-### Build command line executable:
-
-```bazel build //:main```
-
-### Build static library:
-
-```bazel build //:lib```
-
-### Available targets:
-
-* `//:main` - executable binary, `sunriset` or `sunriset.exe`
-* `//:lib` - static library, `sunriset.a` or `sunriset.lib`
-* `//:test` - test-all
+```bazel test //:test-all```
