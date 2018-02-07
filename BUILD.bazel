@@ -17,12 +17,17 @@ cc_library(
     ],
 )
 
-# executable binary
-cc_binary(
-    name='sunriset',
-    srcs=[
+# static library
+cc_library(
+    name='sunriset-bin',
+    visibility=['//visibility:public'],
+    includes=[
+        'include',
+    ],
+    hdrs=[
         'include/sunriset_option.h',
-        'src/main.c',
+    ],
+    srcs=[
         'src/option.c',
     ],
     deps=[
@@ -31,9 +36,21 @@ cc_binary(
     ],
 )
 
+# executable binary
+cc_binary(
+    name='sunriset',
+    srcs=[
+        'src/main.c',
+    ],
+    deps=[
+        'sunriset-bin',
+    ],
+)
+
 # cline
 cc_library(
     name='cline',
+    visibility=['//visibility:public'],
     includes=[
         'include',
     ],
@@ -46,11 +63,8 @@ cc_library(
 )
 
 # test: all
-cc_test(
+test_suite(
     name='test-all',
-    timeout='short',
     tags=[],
-    deps=[
-        '//test:test-sunriset',
-    ],
+    tests=['//test:test-all'],
 )
