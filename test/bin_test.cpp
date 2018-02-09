@@ -9,7 +9,7 @@
     EXPECT_LE(fabs((a)-(b)), (delta))
 
 
-class Test_main : public testing::Test {
+class Test_bin : public testing::Test {
 protected:
     virtual void SetUp()
     {
@@ -19,14 +19,14 @@ protected:
 
 extern "C" int sunriset_main(int argc, const char **argv);
 
-TEST_F(Test_main, help)
+TEST_F(Test_bin, help)
 {
     static const char *argv[] = {"main_test", "--help"};
 
     EXPECT_EQ(sunriset_main(_c(argv), argv), 0);
 }
 
-// TEST_F(Test_main, day_len_seoul)
+// TEST_F(Test_bin, day_len_seoul)
 // {
 
 
@@ -39,7 +39,7 @@ TEST_F(Test_main, help)
 //         2018, 2, 9, 0, 37.56667), 13.558356, 0.000001);
 // }
 
-// TEST_F(Test_main, sun_rise_set_seoul)
+// TEST_F(Test_bin, sun_rise_set_seoul)
 // {
 //     double rise, set;
 
@@ -62,7 +62,7 @@ TEST_F(Test_main, help)
 //     EXPECT_APPROX(set, 10.544746, 0.000001);
 // }
 
-// TEST_F(Test_main, sun_rise_set_nordkapp)
+// TEST_F(Test_bin, sun_rise_set_nordkapp)
 // {
 //     double rise, set;
 
@@ -82,7 +82,7 @@ TEST_F(Test_main, help)
 //     EXPECT_APPROX(set, 15.406834, 0.000001);
 // }
 
-// TEST_F(Test_main, north_pole)
+// TEST_F(Test_bin, north_pole)
 // {
 //     double rise, set;
 
@@ -117,7 +117,7 @@ TEST_F(Test_main, help)
 //     EXPECT_GT(astronomical_twilight(2018, 6, 21, .0, 90.0, &rise, &set), 0);
 // }
 
-// TEST_F(Test_main, south_pole)
+// TEST_F(Test_bin, south_pole)
 // {
 //     double rise, set;
 
