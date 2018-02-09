@@ -1,5 +1,12 @@
 /* External definitions for sunriset.c */
 
+#ifdef __cplusplus
+  #define SUNRISET_EXPORT extern "C"
+#else
+  #define SUNRISET_EXPORT
+#endif
+
+
 /* Following are some macros around the "workhorse" function __daylen__ */
 /* They mainly fill in the desired values for the reference altitude    */
 /* below the horizon, and also selects whether this altitude should     */
@@ -35,7 +42,7 @@
 /* Sunrise/set is considered to occur when the Sun's upper limb is    */
 /* 35 arc minutes below the horizon (this accounts for the refraction */
 /* of the Earth's atmosphere).                                        */
-#define sun_riset(year,month,day,lon,lat,rise,set)  \
+#define sun_rise_set(year,month,day,lon,lat,rise,set)  \
         __sunriset__( year, month, day, lon, lat, -35.0/60.0, 1, rise, set )
 
 /* This macro computes the start and end times of civil twilight.       */
@@ -74,9 +81,7 @@
 /*               Set to non-zero (e.g. 1) when computing day length   */
 /*               and to zero when computing day+twilight length.      */
 /**********************************************************************/
-#ifdef __cplusplus__
-extern "C"
-#endif
+SUNRISET_EXPORT
 double __daylen__( int year, int month, int day, double lon, double lat,
                    double altit, int upper_limb );
 
@@ -109,9 +114,7 @@ double __daylen__( int year, int month, int day, double lon, double lat,
 /*                    both set to the time when the sun is at south.  */
 /*                                                                    */
 /**********************************************************************/
-#ifdef __cplusplus__
-extern "C"
-#endif
+SUNRISET_EXPORT
 int __sunriset__( int year, int month, int day, double lon, double lat,
                   double altit, int upper_limb, double *rise, double *set );
 
@@ -121,10 +124,10 @@ int __sunriset__( int year, int month, int day, double lon, double lat,
 /* 2000 Jan 0.0.  The Sun's ecliptic latitude is not  */
 /* computed, since it's always very near 0.           */
 /******************************************************/
-#ifdef __cplusplus__
-extern "C"
-#endif
+/*
+SUNRISET_EXPORT
 void sunpos( double d, double *lon, double *r );
+*/
 
 /******************************************************/
 /* Computes the Sun's equatorial coordinates RA, Decl */
@@ -132,8 +135,6 @@ void sunpos( double d, double *lon, double *r );
 /* the number of days since 2000 Jan 0.0.             */
 /******************************************************/
 /*
-#ifdef __cplusplus__
-extern "C"
-#endif
+SUNRISET_EXPORT
 void sun_RA_dec( double d, double *RA, double *dec, double *r );
 */

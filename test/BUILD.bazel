@@ -1,14 +1,18 @@
 # `sunriset` tests
 # ----------------
 
-cc_library(
+test_suite(
+    name='test-all',
+)
+
+cc_test(
     name='test-sunriset',
-    visibility=['//visibility:public'],
+    timeout='short',
     srcs=glob(
-        include=['*_test.cpp'],
+        include=['*_test.cpp',],
     ),
     deps=[
-        '//:sunriset-static',
-        '@com_google_googletest//:gtest',
+        '//:sunriset-bin',
+        '@com_google_googletest//:gtest_main',
     ],
 )
