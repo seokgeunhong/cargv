@@ -24,7 +24,7 @@ struct sunriset_option_t {
     enum sunriset_twilight twilight;
 
     struct cline_date date;
-    struct cline_latitude latitude;
+    struct cline_geocoord position;
 };
 
 SUNRISET_EXPORT

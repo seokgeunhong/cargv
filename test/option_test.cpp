@@ -42,9 +42,12 @@ TEST_F(Test_option, noarg)
     EXPECT_EQ(option.date.day, t->tm_mday);
 
     // Seoul
-    EXPECT_EQ(option.latitude.deg, 37000000);
-    EXPECT_EQ(option.latitude.min, 340000);
-    EXPECT_EQ(option.latitude.sec, 0);
+    EXPECT_EQ(option.position.latitude.deg, 37000000);
+    EXPECT_EQ(option.position.latitude.min, 34000000);
+    EXPECT_EQ(option.position.latitude.sec, 0);
+    EXPECT_EQ(option.position.longitude.deg, 126000000);
+    EXPECT_EQ(option.position.longitude.min, 58000000);
+    EXPECT_EQ(option.position.longitude.sec, 0);
 }
 
 TEST_F(Test_option, opt_h)
@@ -108,22 +111,11 @@ TEST_F(Test_option, opt_date_missing)
     ASSERT_EQ(parse_args(&option, _c(argv), argv), CLINE_ERR_VALUE_REQUIRED);
 }
 
-TEST_F(Test_option, opt_latitude)
+TEST_F(Test_option, opt_pos)
 {
-    static char *argv[] = {_cmd, "--latitude", "-18.333333"};
+    static char *argv[] = {_cmd, "--position", "-18.333333+37.56667"};
 
     ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
-    EXPECT_APPROX(cline_get_latitude_degree(&option.latitude), -18.333333, 0.000001);
-}
-
-TEST_F(Test_option, opt_latitude_wrong)
-{
-    static char *argv[] = {_cmd, "--latitude", "-18.3333-"};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), CLINE_ERR_VALUE);
-}
-
-TEST_F(Test_option, opt_latitude_missing)
-{
-    static char *argv[] = {_cmd, "--latitude"};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), CLINE_ERR_VALUE_REQUIRED);
+    EXPECT_APPROX(cline_get_degree(&option.position.latitude), -18.333333, 0.000001);
+    EXPECT_APPROX(cline_get_degree(&option.position.longitude), 37.56667, 0.000001);
 }

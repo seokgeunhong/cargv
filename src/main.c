@@ -33,11 +33,16 @@ int main(int argc, char *argv[])
     printf("date:%04d-%02d-%02d\n",
         option.date.year, option.date.month, option.date.day);
 
-    printf("latitude: %fdeg %fmin %fsec\n",
-        (double)option.latitude.deg / 1000000.0,
-        (double)option.latitude.min / 10000.0,
-        (double)option.latitude.sec / 100.0);
-    printf(" = %fdeg\n", cline_get_latitude_degree(&option.latitude));
+    printf("latitude: %fdeg %fmin %fsec = %fdeg\n",
+        (double)option.position.latitude.deg / 1000000.0,
+        (double)option.position.latitude.min / 1000000.0,
+        (double)option.position.latitude.sec / 1000000.0,
+        cline_get_degree(&option.position.latitude));
+    printf("longitude: %fdeg %fmin %fsec = %fdeg\n",
+        (double)option.position.longitude.deg / 1000000.0,
+        (double)option.position.longitude.min / 1000000.0,
+        (double)option.position.longitude.sec / 1000000.0,
+        cline_get_degree(&option.position.longitude));
 
     return 0;
 }
