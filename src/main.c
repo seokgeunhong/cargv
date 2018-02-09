@@ -2,8 +2,8 @@
 sunriset
 */
 
-#include "sunriset_option.h"
 #include "sunriset_version.h"
+#include "sunriset_option.h"
 #include "sunriset.h"
 
 #include <stdio.h>
@@ -29,14 +29,15 @@ int main(int argc, char *argv[])
         print_usage();
         return 0;
     }
-    // if (option.verbose)
-    //     printf("opt: --verbose\n");
-    if (option.longitude)
-        printf("opt: --longitude '%s'\n", option.longitude);
-    if (option.latitude)
-        printf("opt: --latitude '%s'\n", option.latitude);
-    if (option.altitude)
-        printf("opt: --altitude '%s'\n", option.altitude);
+
+    printf("date:%04d-%02d-%02d\n",
+        option.date.year, option.date.month, option.date.day);
+
+    printf("latitude: %fdeg %fmin %fsec\n",
+        (double)option.latitude.deg / 1000000.0,
+        (double)option.latitude.min / 10000.0,
+        (double)option.latitude.sec / 100.0);
+    printf(" = %fdeg\n", cline_get_latitude_degree(&option.latitude));
 
     return 0;
 }
