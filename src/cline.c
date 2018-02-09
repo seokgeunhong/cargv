@@ -59,7 +59,7 @@ static int match_chars(
     if (s - str >= minlen) {
         *val = str;
         *end = s;
-        return *end - *val;
+        return *end - str;
     }
     else {
         *end = str;
@@ -87,15 +87,14 @@ static int match_chars_range(
 static int read_udec(int *val, const char **end, const char *str)
 {
     const char *s;
-    int r;
 
-    r = match_chars_range(&s, end, str, "09", 1, 10);
-    if (r > 0) {
+    if (match_chars_range(&s, end, str, "09", 1, 10)) {
         *val = 0;
         for (; s < *end; s++)
             *val = *val * 10 + (*s - '0');
+        return *end - str;
     }
-    return r;
+    return 0;
 }
 
 /* signed decimal integer */
@@ -135,54 +134,79 @@ static int pow10(int e)
     return x;
 }
 
-static int read_latitude(
-    struct cline_latitude *val, const char **end, const char *str)
+static int read_geocoord_iso6709_degree(
+    struct cline_degree *val,
+    const char **end, const char *str)
 {
-    const char *s = str, *dir, *dot;
+    const char *s = str, *sign, *dot;
     int a, la, b, lb; /* `a.b` */
 
     *end = str;
-    if (match_chars_set(&dir, &s, s, "+-", 1, 1)) {
-        /* considered ISO 6709 */
-        if (!((la = read_udec(&a, &s, s)) > 0
-            && match_chars_set(&dot, &s, s, ".", 1, 1)
-            && (lb = read_udec(&b, &s, s)) > 0))
+
+    if (!match_chars_set(&sign, &s, s, "+-", 1, 1))
+        return 0;
+    if (!(la = read_udec(&a, &s, s)))
+        return 0;
+    if (match_chars_set(&dot, &s, s, ".", 1, 1)) {
+        if (!(lb = read_udec(&b, &s, s)))
             return 0;
-
-        switch (la) {
-        case 2:
-            val->deg = a * 1000000 + b / pow10(lb - 6) * pow10(6 - lb);
-            val->min = 0;
-            val->sec = 0;
-            break;
-
-        case 4:
-            val->deg = a / 100 * 1000000;
-            val->min = a % 100 * 10000 + b / pow10(lb - 4) * pow10(4 - lb);
-            val->sec = 0;
-            break;
-
-        case 6:
-            val->deg = a / 10000 * 1000000;
-            val->min = a % 10000 / 100 * 10000;
-            val->sec = a % 100 * 100 + b / pow10(lb - 2) * pow10(2 - lb);
-            break;
-
-        default: return 0;
-        }
-        if (*dir == '-') {
-            val->deg = -val->deg;
-            val->min = -val->min;
-            val->sec = -val->sec;
-        }
-        *end = s;
-        return *end - str;
+    }
+    else {
+        lb = 0;
+        b = 0;
+    }
+    if (la < 1) {
+        return 0;
+    }
+    else if (la < 4) {
+        val->deg = a * 1000000 + b / pow10(lb - 6) * pow10(6 - lb);
+        val->min = val->sec = 0;
+    }
+    else if (la < 6) {
+        val->deg = a / 100 * 1000000;
+        val->min = a % 100 * 1000000 + b / pow10(lb - 4) * pow10(4 - lb) * 100;
+        val->sec = 0;
+    }
+    else if (la < 8) {
+        val->deg = a / 10000 * 1000000;
+        val->min = a % 10000 / 100 * 1000000;
+        val->sec = a % 100 * 1000000 + b / pow10(lb - 2) * pow10(2 - lb) * 10000;
     }
     else {
         return 0;
     }
+
+    if (!(val->min >= 0 && val->min < 60000000
+        && val->sec >= 0 && val->sec < 60000000))
+        return 0;
+
+    if (*sign == '-') {
+        val->deg = -val->deg;
+        val->min = -val->min;
+        val->sec = -val->sec;
+    }
+
+    *end = s;
+    return *end - str;
 }
 
+static int read_geocoord_iso6709(
+    struct cline_geocoord *val,
+    const char **end, const char *str)
+{
+    const char *s = str;
+    const char *solidus;
+
+    if (read_geocoord_iso6709_degree(&val->latitude, &s, s)
+        && val->latitude.deg >= -90000000 && val->latitude.deg <= 90000000
+        && read_geocoord_iso6709_degree(&val->longitude, &s, s)
+        && val->longitude.deg >= -180000000 && val->longitude.deg <= 180000000)
+    {
+        match_chars_set(&solidus, end, s, "/", 1, 1);  // optional `/`
+        return *end - str;
+    }
+    return 0;
+}
 
 enum cline_result
 cline_init(
@@ -268,8 +292,9 @@ cline_read(
                                 && match_end(a)
                                 ? CLINE_OK : CLINE_ERR_VALUE;
 
-                        case CLINE_LATITUDE:
-                            return read_latitude(&val->latitude, &a, val->arg)
+                        case CLINE_GEOCOORD:
+                            return read_geocoord_iso6709(
+                                &val->geocoord, &a, val->arg)
                                 && match_end(a)
                                 ? CLINE_OK : CLINE_ERR_VALUE;
                         }
@@ -287,9 +312,9 @@ cline_read(
 }
 
 CLINE_EXPORT
-double cline_get_latitude_degree(struct cline_latitude *latitude)
+double cline_get_degree(const struct cline_degree *val)
 {
-    return (double)latitude->deg / 1E+6
-        + (double)latitude->min / 1E+4 / 60.0
-        + (double)latitude->sec / 1E+2 / 3600.0;
+    return (double)val->deg / 1E+6
+        + (double)val->min / 1E+6 / 60.0
+        + (double)val->sec / 1E+6 / 3600.0;
 }

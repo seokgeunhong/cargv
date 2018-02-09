@@ -35,20 +35,26 @@ void print_usage()
 "  --date DATE               Date of observation. Only years of [1801,2099]",
 "                            are valid. Default is date of local time.",
 "",
-"        ISO 8601:   yyyy-mm-dd",
+"      ISO 8601:   yyyy-mm-dd",
 "",
-"  --latitude LATITUDE       Latitude  of observation. Default is Seoul.",
+"  -p --position GEOCOORD    Position of observation. Default is Seoul.",
 "",
-"        ISO 6709:   [+-]DD.DDDDDD  degrees",
-"                    [+-]DDMM.MMMM  degrees, and minutes",
-"                    [+-]DDMMSS.SS  degrees, minutes and seconds",
+"      ISO 6709: +-LATITUDE+-LONGITUDE[/]",
 "",
-"                    + sign means north, as well as - means south.",
-"                    Sign is mandatory. Examples:",
+"          LATITUDE:   (+|-)DD[.DDDDDD]  degrees",
+"                      (+|-)DDMM[.MMMM]  degrees, and minutes",
+"                      (+|-)DDMMSS[.SS]  degrees, minutes and seconds",
 "",
-"                    Seoul: +37.56667 or +3734.00",
-"                    New York: +40.712815",
-"                    Antananarivo, Madagascar: -18.933333",
+"          LONGITUDE:  (+|-)DDD[.DDDDDD] degrees",
+"                      (+|-)DDDMM[.MMMM] degrees, and minutes",
+"                      (+|-)DDDMMSS[.SS] degrees, minutes and seconds",
+"",
+"          Trailing solidus can be omitted and will be ignored.",
+"          + sign means North or East, - does South or West, respectively.",
+"",
+"          Examples: Seoul, Korea: +37.56667+126.966667 or +3734+12658",
+"                    New York City, U.S.: +40.7127-74.0059",
+"                    Antananarivo, Madagascar: -18.933333+47.516667",
 "",
 "Original code was written and released to the public by Paul Schlyter,",
 "December 1992, and can be found at: http://stjarnhimlen.se/comp/sunriset.c",
@@ -76,7 +82,7 @@ int parse_args(struct sunriset_option_t *option, int argc, char *argv[])
         {"--year\0-Y\0",                CLINE_INTEGER},
         {"--month\0-M\0",               CLINE_INTEGER},
         {"--day\0-D\0",                 CLINE_INTEGER},
-        {"--latitude\0-y\0",            CLINE_LATITUDE},
+        {"--position\0--pos\0-p\0",     CLINE_GEOCOORD},
     };
 
     struct cline_parser parser;
@@ -97,9 +103,12 @@ int parse_args(struct sunriset_option_t *option, int argc, char *argv[])
     option->date.day = today->tm_mday;
 
     /* position defaults to Seoul */
-    option->latitude.deg = 37000000;
-    option->latitude.min = 340000;
-    option->latitude.sec = 0;
+    option->position.latitude.deg = 37000000;
+    option->position.latitude.min = 34000000;
+    option->position.latitude.sec = 0;
+    option->position.longitude.deg = 126000000;
+    option->position.longitude.min = 58000000;
+    option->position.longitude.sec = 0;
 
     if (cline_init(&parser, sizeof(_opts)/sizeof(_opts[0]), _opts, argc, argv))
         return 1;
@@ -135,8 +144,8 @@ int parse_args(struct sunriset_option_t *option, int argc, char *argv[])
         else if (strcmp(opt->names, "--day") == 0) {
             option->date.day = val.integer;
         }
-        else if (strcmp(opt->names, "--latitude") == 0) {
-            memcpy(&option->latitude, &val.latitude, sizeof(option->latitude));
+        else if (strcmp(opt->names, "--position") == 0) {
+            memcpy(&option->position, &val.geocoord, sizeof(option->position));
         }
         else {
             fprintf(stderr,

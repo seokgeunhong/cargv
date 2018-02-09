@@ -25,7 +25,7 @@ enum cline_type {
     CLINE_TEXT,
     CLINE_INTEGER,
     CLINE_DATE,
-    CLINE_LATITUDE,
+    CLINE_GEOCOORD,
 };
 
 struct cline_opt {
@@ -37,10 +37,15 @@ struct cline_date {
     int year, month, day;
 };
 
-struct cline_latitude {
-    int deg;    /* aa.bbbbbb */
-    int min;    /* aa.bbbb */
-    int sec;    /* aa.bb */
+struct cline_degree {
+    int deg;    /* ddd.dddddd */
+    int min;    /* mm.mmmmmm */
+    int sec;    /* ss.ssssss */
+};
+
+struct cline_geocoord {
+    struct cline_degree latitude, longitude;
+    /* int altitude; */
 };
 
 struct cline_value {
@@ -50,7 +55,7 @@ struct cline_value {
         int integer;
         const char *text;
         struct cline_date date;
-        struct cline_latitude latitude;
+        struct cline_geocoord geocoord;
     };
 };
 
@@ -101,8 +106,7 @@ cline_read(
 
 
 CLINE_EXPORT
-double cline_get_latitude_degree(struct cline_latitude *latitude);
-
+double cline_get_degree(const struct cline_degree *val);
 
 
 #endif /* __cline_h__ */

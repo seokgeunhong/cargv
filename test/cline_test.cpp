@@ -32,8 +32,8 @@ const cline_opt Test_cline::_opts[] = {
     {"-v\0--verbose\0",     CLINE_BOOL      },
     {"-n\0--integer\0",     CLINE_INTEGER   },
     {"--text\0",            CLINE_TEXT      },
-    {"--latitude\0",        CLINE_LATITUDE  },
     {"--date\0",            CLINE_DATE      },
+    {"--geo\0",             CLINE_GEOCOORD  },
 };
 
 
@@ -208,58 +208,101 @@ TEST_F(Test_cline, opt_date_err)
     EXPECT_STREQ(val.arg, "1976-6-17-");
 }
 
-TEST_F(Test_cline, opt_latitude_iso)
+TEST_F(Test_cline, opt_geocoord_iso6709)
 {
     static char *argv[] = {_cmd,
-        "--latitude", "+32.3957",
-        "--latitude", "-18.933333",
-        "--latitude", "+3239.57",
-        "--latitude", "-1833.3334",
-        "--latitude", "-183333.334",
+        "--geo", "+32.3957+132.3957",
+        "--geo", "-18.933333-13239.5/",
+        "--geo", "+3239.57+0793333.334/",
+        "--geo", "+32+9103",
+        "--geo", "+32.3-0",
     };
 
     cline_parser parser;
     ASSERT_EQ(cline_init(&parser, _c(_opts), _opts, _c(argv), argv), CLINE_OK);
 
     EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_OK);
-    EXPECT_STREQ(name, "--latitude");
-    EXPECT_STREQ(val.arg, "+32.3957");
-    EXPECT_EQ(val.latitude.deg, 32395700);
-    EXPECT_EQ(val.latitude.min, 0);
-    EXPECT_EQ(val.latitude.sec, 0);
-    EXPECT_EQ(cline_get_latitude_degree(&val.latitude), 32.3957);
+    EXPECT_STREQ(name, "--geo");
+    EXPECT_STREQ(val.arg, "+32.3957+132.3957");
+    EXPECT_EQ(val.geocoord.latitude.deg, 32395700);
+    EXPECT_EQ(val.geocoord.latitude.min, 0);
+    EXPECT_EQ(val.geocoord.latitude.sec, 0);
+    EXPECT_EQ(cline_get_degree(&val.geocoord.latitude), 32.3957);
+    EXPECT_EQ(val.geocoord.longitude.deg, 132395700);
+    EXPECT_EQ(val.geocoord.longitude.min, 0);
+    EXPECT_EQ(val.geocoord.longitude.sec, 0);
+    EXPECT_EQ(cline_get_degree(&val.geocoord.longitude), 132.3957);
 
     EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_OK);
-    EXPECT_STREQ(name, "--latitude");
-    EXPECT_STREQ(val.arg, "-18.933333");
-    EXPECT_EQ(val.latitude.deg, -18933333);
-    EXPECT_EQ(val.latitude.min, 0);
-    EXPECT_EQ(val.latitude.sec, 0);
-    EXPECT_APPROX(cline_get_latitude_degree(&val.latitude), -18.933333, 0.000001);
+    EXPECT_STREQ(name, "--geo");
+    EXPECT_STREQ(val.arg, "-18.933333-13239.5/");
+    EXPECT_EQ(val.geocoord.latitude.deg, -18933333);
+    EXPECT_EQ(val.geocoord.latitude.min, 0);
+    EXPECT_EQ(val.geocoord.latitude.sec, 0);
+    EXPECT_EQ(cline_get_degree(&val.geocoord.latitude), -18.933333);
+    EXPECT_EQ(val.geocoord.longitude.deg, -132000000);
+    EXPECT_EQ(val.geocoord.longitude.min, -39500000);
+    EXPECT_EQ(val.geocoord.longitude.sec, 0);
+    EXPECT_APPROX(cline_get_degree(&val.geocoord.longitude), -132.658333, 0.000001);
 
     EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_OK);
-    EXPECT_STREQ(name, "--latitude");
-    EXPECT_STREQ(val.arg, "+3239.57");
-    EXPECT_EQ(val.latitude.deg, 32000000);
-    EXPECT_EQ(val.latitude.min, 395700);
-    EXPECT_EQ(val.latitude.sec, 0);
-    EXPECT_APPROX(cline_get_latitude_degree(&val.latitude), 32.6595, 0.0001);
+    EXPECT_STREQ(name, "--geo");
+    EXPECT_STREQ(val.arg, "+3239.57+0793333.334/");
+    EXPECT_EQ(val.geocoord.latitude.deg, 32000000);
+    EXPECT_EQ(val.geocoord.latitude.min, 39570000);
+    EXPECT_EQ(val.geocoord.latitude.sec, 0);
+    EXPECT_APPROX(cline_get_degree(&val.geocoord.latitude), 32.6595, 0.000001);
+    EXPECT_EQ(val.geocoord.longitude.deg, 79000000);
+    EXPECT_EQ(val.geocoord.longitude.min, 33000000);
+    EXPECT_EQ(val.geocoord.longitude.sec, 33330000);
+    EXPECT_APPROX(cline_get_degree(&val.geocoord.longitude), 79.559259, 0.000001);
 
     EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_OK);
-    EXPECT_STREQ(name, "--latitude");
-    EXPECT_STREQ(val.arg, "-1833.3334");
-    EXPECT_EQ(val.latitude.deg, -18000000);
-    EXPECT_EQ(val.latitude.min, -333334);
-    EXPECT_EQ(val.latitude.sec, 0);
-    EXPECT_APPROX(cline_get_latitude_degree(&val.latitude), -18.555556, 0.000001);
+    EXPECT_STREQ(name, "--geo");
+    EXPECT_STREQ(val.arg, "+32+9103");
+    EXPECT_EQ(val.geocoord.latitude.deg, 32000000);
+    EXPECT_EQ(val.geocoord.latitude.min, 0);
+    EXPECT_EQ(val.geocoord.latitude.sec, 0);
+    EXPECT_EQ(cline_get_degree(&val.geocoord.latitude), 32.0);
+    EXPECT_EQ(val.geocoord.longitude.deg, 91000000);
+    EXPECT_EQ(val.geocoord.longitude.min,  3000000);
+    EXPECT_EQ(val.geocoord.longitude.sec, 0);
+    EXPECT_APPROX(cline_get_degree(&val.geocoord.longitude), 91.05, 0.000001);
 
     EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_OK);
-    EXPECT_STREQ(name, "--latitude");
-    EXPECT_STREQ(val.arg, "-183333.334");
-    EXPECT_EQ(val.latitude.deg, -18000000);
-    EXPECT_EQ(val.latitude.min, -330000);
-    EXPECT_EQ(val.latitude.sec, -3333);
-    EXPECT_APPROX(cline_get_latitude_degree(&val.latitude), -18.559258, 0.000001);
+    EXPECT_STREQ(name, "--geo");
+    EXPECT_STREQ(val.arg, "+32.3-0");
+    EXPECT_EQ(val.geocoord.latitude.deg, 32300000);
+    EXPECT_EQ(val.geocoord.latitude.min, 0);
+    EXPECT_EQ(val.geocoord.latitude.sec, 0);
+    EXPECT_EQ(cline_get_degree(&val.geocoord.latitude), 32.3);
+    EXPECT_EQ(val.geocoord.longitude.deg, 0);
+    EXPECT_EQ(val.geocoord.longitude.min, 0);
+    EXPECT_EQ(val.geocoord.longitude.sec, 0);
+    EXPECT_EQ(cline_get_degree(&val.geocoord.longitude), .0);
+
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_END);
+}
+
+TEST_F(Test_cline, opt_geocoord_iso6709_err)
+{
+    static char *argv[] = {_cmd,
+        "--geo", "+132.3957+32.3957",
+        "--geo", "18.933333-13239.57",
+        "--geo", "+32.390793333.334",
+        "--geo", "+18.3333-13287.57",
+        "--geo", "+18.3333-232.57",
+    };
+
+    cline_parser parser;
+    ASSERT_EQ(cline_init(&parser, _c(_opts), _opts, _c(argv), argv), CLINE_OK);
+
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_ERR_VALUE);
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_ERR_VALUE);
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_ERR_VALUE);
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_ERR_VALUE);
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_ERR_VALUE);
+    EXPECT_EQ(cline_read(&parser, &opt, &name, &val), CLINE_END);
 }
 
 TEST_F(Test_cline, sep)
