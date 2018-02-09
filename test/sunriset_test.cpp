@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include <stdio.h>
+#include <math.h>
 
 
 #define _c(a)    (sizeof(a)/sizeof((a)[0]))

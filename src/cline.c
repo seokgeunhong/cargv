@@ -49,8 +49,6 @@ static int match_chars(
     int minlen, int maxlen)
 {
     const char *s;
-    const char *c;
-    int n;
 
     for (s = str; *s && s - str < maxlen; s++) {
         if (!(*matcher)(*s, against))
@@ -126,7 +124,7 @@ static int read_date(struct cline_date *val, const char **end, const char *str)
         ? (*end - str) : 0;
 }
 
-static int pow10(int e)
+static int _p10(int e)
 {
     int x = 1;
     while (e-- > 0)
@@ -159,18 +157,18 @@ static int read_geocoord_iso6709_degree(
         return 0;
     }
     else if (la < 4) {
-        val->deg = a * 1000000 + b / pow10(lb - 6) * pow10(6 - lb);
+        val->deg = a * 1000000 + b / _p10(lb - 6) * _p10(6 - lb);
         val->min = val->sec = 0;
     }
     else if (la < 6) {
         val->deg = a / 100 * 1000000;
-        val->min = a % 100 * 1000000 + b / pow10(lb - 4) * pow10(4 - lb) * 100;
+        val->min = a % 100 * 1000000 + b / _p10(lb - 4) * _p10(4 - lb) * 100;
         val->sec = 0;
     }
     else if (la < 8) {
         val->deg = a / 10000 * 1000000;
         val->min = a % 10000 / 100 * 1000000;
-        val->sec = a % 100 * 1000000 + b / pow10(lb - 2) * pow10(2 - lb) * 10000;
+        val->sec = a % 100 * 1000000 + b / _p10(lb - 2) * _p10(2 - lb) * 10000;
     }
     else {
         return 0;

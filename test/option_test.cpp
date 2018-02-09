@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 
 #include <stdio.h>
+#include <math.h>
 
 
 #define _c(a)    (sizeof(a)/sizeof((a)[0]))
@@ -16,20 +17,20 @@ protected:
     {
     }
 
-    static char *_cmd;
+    static const char *_cmd;
     static const cline_opt _opts[];
 
     struct sunriset_option_t option;
     int err;
 };
 
-char *Test_option::_cmd = "sunriset";
+const char *Test_option::_cmd = "sunriset";
 
 
 TEST_F(Test_option, noarg)
 {
-    static char *argv[] = {_cmd};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    static const char *argv[] = {_cmd};
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_EQ(option.version, 0);
     EXPECT_EQ(option.help, 0);
 
@@ -52,37 +53,37 @@ TEST_F(Test_option, noarg)
 
 TEST_F(Test_option, opt_h)
 {
-    static char *argv[] = {_cmd, "-h"};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    static const char *argv[] = {_cmd, "-h"};
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_EQ(option.help, 1);
 }
 
 TEST_F(Test_option, opt_help)
 {
-    static char *argv[] = {_cmd, "--help"};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    static const char *argv[] = {_cmd, "--help"};
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_EQ(option.help, 1);
 }
 
 TEST_F(Test_option, opt_version)
 {
-    static char *argv[] = {_cmd, "--version"};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    static const char *argv[] = {_cmd, "--version"};
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_EQ(option.version, 1);
 }
 
 TEST_F(Test_option, opt_unknown)
 {
-    static char *argv[] = {_cmd, "-h", "--babo"};
-    cline_parser parser;
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), CLINE_ERR_OPTION);
+    static const char *argv[] = {_cmd, "-h", "--babo"};
+
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), CLINE_ERR_OPTION);
 }
 
 TEST_F(Test_option, opt_date)
 {
-    static char *argv[] = {_cmd, "--date", "1976-6-17"};
+    static const char *argv[] = {_cmd, "--date", "1976-6-17"};
 
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_EQ(option.date.year, 1976);
     EXPECT_EQ(option.date.month, 6);
     EXPECT_EQ(option.date.day, 17);
@@ -90,9 +91,9 @@ TEST_F(Test_option, opt_date)
 
 TEST_F(Test_option, opt_date_override)
 {
-    static char *argv[] = {_cmd, "--date", "1976-6-17", "--year", "2018"};
+    static const char *argv[] = {_cmd, "--date", "1976-6-17", "--year", "2018"};
 
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_EQ(option.date.year, 2018);
     EXPECT_EQ(option.date.month, 6);
     EXPECT_EQ(option.date.day, 17);
@@ -100,22 +101,22 @@ TEST_F(Test_option, opt_date_override)
 
 TEST_F(Test_option, opt_date_wrong)
 {
-    static char *argv[] = {_cmd, "--date", "1976-6--17"};
+    static const char *argv[] = {_cmd, "--date", "1976-6--17"};
 
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), CLINE_ERR_VALUE);
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), CLINE_ERR_VALUE);
 }
 
 TEST_F(Test_option, opt_date_missing)
 {
-    static char *argv[] = {_cmd, "--date"};
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), CLINE_ERR_VALUE_REQUIRED);
+    static const char *argv[] = {_cmd, "--date"};
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), CLINE_ERR_VALUE_REQUIRED);
 }
 
 TEST_F(Test_option, opt_pos)
 {
-    static char *argv[] = {_cmd, "--position", "-18.333333+37.56667"};
+    static const char *argv[] = {_cmd, "--position", "-18.333333+37.56667"};
 
-    ASSERT_EQ(parse_args(&option, _c(argv), argv), 0);
+    ASSERT_EQ(parse_args(&option, _c(argv), (char **)argv), 0);
     EXPECT_APPROX(cline_get_degree(&option.position.latitude), -18.333333, 0.000001);
     EXPECT_APPROX(cline_get_degree(&option.position.longitude), 37.56667, 0.000001);
 }
