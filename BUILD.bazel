@@ -3,7 +3,7 @@
 
 # static library
 cc_library(
-    name='sunriset-static',
+    name='static',
     visibility=['//visibility:public'],
     includes=[
         'include',
@@ -19,20 +19,19 @@ cc_library(
 
 # static library
 cc_library(
-    name='sunriset-bin',
+    name='bin',
     visibility=['//visibility:public'],
     includes=[
         'include',
     ],
     hdrs=[
-        'include/sunriset_option.h',
     ],
     srcs=[
-        'src/option.c',
+        'src/bin.c',
     ],
     deps=[
-        'sunriset-static',
-        'cline',
+        'static',
+        'cargv',
     ],
 )
 
@@ -43,22 +42,23 @@ cc_binary(
         'src/main.c',
     ],
     deps=[
-        'sunriset-bin',
+        'bin',
     ],
 )
 
-# cline
+# cargv
 cc_library(
-    name='cline',
+    name='cargv',
     visibility=['//visibility:public'],
     includes=[
         'include',
     ],
     hdrs=[
-        'include/cline.h',
+        'include/cargv_version.h',
+        'include/cargv.h',
     ],
     srcs=[
-        'src/cline.c',
+        'src/cargv.c',
     ],
 )
 

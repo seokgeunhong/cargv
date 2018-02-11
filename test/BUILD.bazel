@@ -8,11 +8,30 @@ test_suite(
 cc_test(
     name='test-sunriset',
     timeout='short',
-    srcs=glob(
-        include=['*_test.cpp',],
-    ),
+    srcs=glob(include=['*_test.cpp',],),
     deps=[
-        '//:sunriset-bin',
+        '//:bin',
+        '//:cargv',
+        '@com_google_googletest//:gtest_main',
+    ],
+)
+
+cc_test(
+    name='test-bin',
+    timeout='short',
+    srcs=['bin_test.cpp',],
+    deps=[
+        '//:bin',
+        '@com_google_googletest//:gtest_main',
+    ],
+)
+
+cc_test(
+    name='test-cargv',
+    timeout='short',
+    srcs=['cargv_test.cpp',],
+    deps=[
+        '//:cargv',
         '@com_google_googletest//:gtest_main',
     ],
 )
