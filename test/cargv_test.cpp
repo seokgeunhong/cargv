@@ -105,6 +105,7 @@ TEST_F(Test_cargv, oneof)
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "dog--cat", "--", v, 4), 2);
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "cow|cat", "|", v, 4), 0);
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "||", "|", v, 4), 0);
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "|dog|cat|", "|", v, 4), 2);
     EXPECT_EQ(cargv_shift(&cargv, 2), 2);

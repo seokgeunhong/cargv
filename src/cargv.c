@@ -728,6 +728,8 @@ int cargv_oneof(
         }
         if (t < listend)    /* found */
             *val++ = *arg;
+        else
+            break;
         *arg++;
     }
     return (int)(val-vals);
