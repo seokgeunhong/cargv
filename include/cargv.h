@@ -105,6 +105,8 @@ int cargv_opt(
 /* Read text value arguments.
 
 [out] return:   Number of values successfully read.
+[in]  cargv:    cargv object.
+[in]  name:     Display name of the program, used in error messages.
 [out] vals:     Array to read values into.
 [in]  valc:     Max number of values to read in. Values beyond will be ignored.
 */
@@ -113,6 +115,25 @@ int cargv_text(
     struct cargv_t *cargv,
     const char *name,
     const char **vals, cargv_len_t valc);
+
+
+/* Read text in a list.
+
+[out] return:   Number of values successfully read.
+[in]  cargv:    cargv object.
+[in]  name:     Display name of the program, used in error messages.
+[in]  list:     Text list seprated by `sep`. Only texts in this list are read.
+[in]  sep:      Text seprator.
+[out] vals:     Array to read values into.
+[in]  valc:     Max number of values to read in. Values beyond will be ignored.
+*/
+CARGV_EXPORT
+int cargv_oneof(
+    struct cargv_t *cargv,
+    const char *name,
+    const char *list, const char *sep,
+    const char **vals, cargv_len_t valc);
+
 
 /* Read signed integer value arguments.
 
@@ -127,6 +148,7 @@ int cargv_int(
     const char *name,
     cargv_int_t *vals, cargv_len_t valc);
 
+
 /* Read unsigned integer value arguments.
 
 [out] return:   Number of values successfully read.
@@ -140,13 +162,6 @@ int cargv_uint(
     const char *name,
     cargv_uint_t *vals, cargv_len_t valc);
 
-/* Match and read: named id */
-CARGV_EXPORT
-int cargv_key(
-    struct cargv_t *cargv,
-    const char *name,
-    const char *keylist,
-    const char **vals, cargv_len_t valc);
 
 /* Read date value arguments.
 
@@ -161,6 +176,7 @@ int cargv_date(
     const char *name,
     struct cargv_date_t *vals, cargv_len_t valc);
 
+
 /* Read degree value arguments.
 
 [out] return:   Number of values successfully read.
@@ -174,6 +190,7 @@ int cargv_degree(
     const char *name,
     struct cargv_degree_t *vals, cargv_len_t valc);
 
+
 /* Read geocoord value arguments.
 
 [out] return:   Number of values successfully read.
@@ -186,6 +203,7 @@ int cargv_geocoord(
     struct cargv_t *cargv,
     const char *name,
     struct cargv_geocoord_t *vals, cargv_len_t valc);
+
 
 /* Convert to degree with decimal fraction */
 CARGV_EXPORT

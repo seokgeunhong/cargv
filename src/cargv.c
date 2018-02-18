@@ -698,6 +698,41 @@ int cargv_text(
     return (int)(v-vals);
 }
 
+int cargv_oneof(
+    struct cargv_t *cargv,
+    const char *name,
+    const char *list, const char *sep,
+    const char **vals, cargv_len_t valc)
+{
+    int r;
+    _str *val, *arg;
+    _str listend, t, tend;
+    _str aend, a;
+    int seplen;
+
+    listend = list + strlen(list);
+    seplen = strlen(sep);
+
+    memset((void *)vals, 0, valc * sizeof(*vals));
+    val = vals;
+    arg = cargv->args;
+    while (val - vals < valc && arg < cargv->argend) {
+        aend = *arg + strlen(*arg);
+        a = *arg;
+        t = list;
+        while (t < listend) {
+            unmatch_str(&tend, t, listend-t, sep, seplen);
+            if (match_str_all(&a, a, aend-a, t, tend-t))
+                break;
+            t = tend + seplen;
+        }
+        if (t < listend)    /* found */
+            *val++ = *arg;
+        *arg++;
+    }
+    return (int)(val-vals);
+}
+
 int cargv_int(
     struct cargv_t *cargv,
     const char *name,
@@ -746,57 +781,6 @@ int cargv_uint(
         a++;
     }
     return (int)(v-vals);
-}
-
-int cargv_key(
-    struct cargv_t *cargv,
-    const char *name,
-    _str keylist,
-    const char **vals, cargv_len_t valc)
-{
-    int r;
-    _str *val, *arg;
-    _str longkey, keyend, k, lk;
-    _str aend, a;
-
-    keyend = keylist + strlen(keylist);
-
-    /* Split keylist */
-    k = keylist;
-    unmatch_str(&longkey, k, keyend-k, key_long_prefix, key_long_prefix_len);
-
-    memset((void *)vals, 0, valc * sizeof(*vals));
-    val = vals;
-    arg = cargv->args;
-    while (val - vals < valc && arg < cargv->argend) {
-        aend = *arg + strlen(*arg);
-
-        /* Match long key */
-        a = *arg;
-        k = longkey;
-        while (k < keyend) {
-            k += key_long_prefix_len;   /* already matched */
-            unmatch_str(&lk, k, keyend-k, key_long_prefix, key_long_prefix_len);
-            if (match_str_all(&a, a, aend-a, k, lk-k))
-                break;
-            k = lk;
-        }
-        if (k < keyend) {
-            *val++ = *arg++;    /* found */
-            continue;
-        }
-
-        /* Match short key */
-        a = *arg;
-        k = keylist;
-        if (match_str(&k, k, longkey-k, key_short_prefix, key_short_prefix_len)
-                && match_chars_set_all(&a, a, aend-a, k, longkey-k)) {
-            *val++ = *arg++;    /* found */
-            continue;
-        }
-        *arg++;
-    }
-    return (int)(val-vals);
 }
 
 int cargv_date(

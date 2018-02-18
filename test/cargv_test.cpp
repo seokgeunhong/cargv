@@ -97,26 +97,18 @@ TEST_F(Test_cargv, text)
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
 
-TEST_F(Test_cargv, key)
+TEST_F(Test_cargv, oneof)
 {
-    static const char *argv[] = {_name, "h", "help", ""};
+    static const char *argv[] = {_name, "dog", "cat", ""};
     const char *v[4];
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-", v, 4), 0);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-h", v, 4), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-hp", v, 4), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-ah", v, 4), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-h--help", v, 4), 2);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "--help", v, 4), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-hp", v, 4), 0);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "--help", v, 4), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-h--help--another-help", v, 4), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "--cookoo--help", v, 4), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_key(&cargv, "KEY", "-h--help", v, 4), 0);
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "dog--cat", "--", v, 4), 2);
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "||", "|", v, 4), 0);
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "|dog|cat|", "|", v, 4), 2);
+    EXPECT_EQ(cargv_shift(&cargv, 2), 2);
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "dog||cat", "||", v, 4), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
