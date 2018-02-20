@@ -90,6 +90,88 @@ static void print_time_of_day(double t)
     printf("%02d:%02d:%02d", (int)t, (int)(t*60.0)%60, (int)(t*3600.0)%60);
 }
 
+static int print_state(
+    const struct cargv_date_t *date,
+    const struct cargv_geocoord_t *pos)
+{
+    struct tm *lt;
+    time_t t;
+    double now;
+
+    int y, m, d;
+    double latitude, longitude;
+
+    double start, end;
+    int allday;
+
+    time(&t);
+    lt = localtime(&t);
+    now = (double)lt->tm_hour + (double)lt->tm_min/60.0
+            + (double)lt->tm_sec/3600.0;
+
+    y = (int)date->year;
+    m = (int)date->month;
+    d = (int)date->day;
+    latitude = cargv_get_degree(&pos->latitude);
+    longitude = .0;
+
+    allday = __sunriset__(y, m, d, .0, latitude, -35.0/60.0, 1, &start, &end);
+    if (allday > 0 || (allday == 0 && now >= start && now <= end)) {
+        printf("day");
+        return 1;
+    }
+    allday = __sunriset__(y, m, d, .0, latitude, -6.0, 0, &start, &end);
+    if (allday > 0 || (allday == 0 && now >= start && now <= end)) {
+        printf("civil-twilight");
+        return 2;
+    }
+    allday = __sunriset__(y, m, d, .0, latitude, -12.0, 0, &start, &end);
+    if (allday > 0 || (allday == 0 && now >= start && now <= end)) {
+        printf("nautical-twilight");
+        return 3;
+    }
+    allday = __sunriset__(y, m, d, .0, latitude, -18.0, 0, &start, &end);
+    if (allday > 0 || (allday == 0 && now >= start && now <= end)) {
+        printf("astronomical-twilight");
+        return 4;
+    }
+    printf("night");
+    return 0;
+}
+
+static int print_is_day(
+    const struct cargv_date_t *date,
+    const struct cargv_geocoord_t *pos)
+{
+    struct tm *lt;
+    time_t t;
+    double now;
+
+    double start, end;
+    int allday;
+
+    time(&t);
+    lt = localtime(&t);
+    now = (double)lt->tm_hour + (double)lt->tm_min/60.0
+            + (double)lt->tm_sec/3600.0;
+
+    allday = __sunriset__(
+            (int)date->year, (int)date->month, (int)date->day,
+            //cargv_get_degree(&pos->longitude),
+            .0,
+            cargv_get_degree(&pos->latitude),
+            -35.0/60.0, 1,
+            &start, &end);
+    if (allday > 0 || (allday == 0 && now >= start && now <= end)) {
+        printf("1");
+        return 0;
+    }
+    else {
+        printf("0");
+        return 1;
+    }
+}
+
 static void print_daylen(
     const struct cargv_date_t *date,
     const struct cargv_geocoord_t *pos)
@@ -111,15 +193,56 @@ static void __print_start_end(
 
     allday = __sunriset__(
             (int)date->year, (int)date->month, (int)date->day,
-            cargv_get_degree(&pos->longitude),
+            //cargv_get_degree(&pos->longitude),
+            .0,
             cargv_get_degree(&pos->latitude),
             altitude, upperlimb,
             &start, &end);
 
     print_time_of_day(start);
-    printf(" ");
-    print_time_of_day(end);
     printf("\n");
+    print_time_of_day(end);
+    //printf("\n");
+}
+
+static void __print_start(
+    const struct cargv_date_t *date,
+    const struct cargv_geocoord_t *pos,
+    double altitude, int upperlimb)
+{
+    double start, end;
+    int allday;
+
+    allday = __sunriset__(
+            (int)date->year, (int)date->month, (int)date->day,
+            //cargv_get_degree(&pos->longitude),
+            .0,
+            cargv_get_degree(&pos->latitude),
+            altitude, upperlimb,
+            &start, &end);
+
+    print_time_of_day(start);
+    //printf("\n");
+}
+
+static void __print_end(
+    const struct cargv_date_t *date,
+    const struct cargv_geocoord_t *pos,
+    double altitude, int upperlimb)
+{
+    double start, end;
+    int allday;
+
+    allday = __sunriset__(
+            (int)date->year, (int)date->month, (int)date->day,
+            //cargv_get_degree(&pos->longitude),
+            .0,
+            cargv_get_degree(&pos->latitude),
+            altitude, upperlimb,
+            &start, &end);
+
+    print_time_of_day(end);
+    //printf("\n");
 }
 
 
@@ -128,6 +251,20 @@ static void print_sunrise_sunset(
     const struct cargv_geocoord_t *pos)
 {
     __print_start_end(date, pos, -35.0/60.0, 1);
+}
+
+static void print_sunrise(
+    const struct cargv_date_t *date,
+    const struct cargv_geocoord_t *pos)
+{
+    __print_start(date, pos, -35.0/60.0, 1);
+}
+
+static void print_sunset(
+    const struct cargv_date_t *date,
+    const struct cargv_geocoord_t *pos)
+{
+    __print_end(date, pos, -35.0/60.0, 1);
 }
 
 static void print_civil_twilight(
@@ -178,7 +315,7 @@ int sunriset_main(int argc, const char **argv)
         return 0;
     }
     while (1) {
-        if (cargv_opt(&cargv, "-u--utc--gmt") > 0) {
+        if (cargv_opt(&cargv, "-u--utc--gmt--universal") > 0) {
             localtime = 0;
             cargv_shift(&cargv, 1);
         }
@@ -209,8 +346,11 @@ int sunriset_main(int argc, const char **argv)
     }
     cargv_shift(&cargv, 1);
     if ((outc = cargv_oneof(&cargv, "OUTPUT",
-            "day|daylen|sun|sunrise-sunset|sunriset|civil-twilight|civil|"
-            "nautical-twilight|nautical|astronomical-twilight|astronomical",
+            "state"
+            "|is-day|day|is-sun|sun|sunrise|sunset"
+            "|is-civil-twilight|civil-twilight"
+            "|is-nautical-twilight|nautical-twilight"
+            "|is-astronomical-twilight|astronomical-twilight",
             "|", out, 100)) < 0) {
         return -2;
     }
@@ -218,36 +358,35 @@ int sunriset_main(int argc, const char **argv)
         fprintf(stderr, "%s: WARNING. No output specified.\n", SUNRISET_NAME);
     }
 
-    printf("date: %04lld-%02lld-%02lld\n", date.year, date.month, date.day);
-    printf("latitude: %fdeg %fmin %fsec = %fdeg\n",
-        (double)pos.latitude.deg / 1000000.0,
-        (double)pos.latitude.min / 1000000.0,
-        (double)pos.latitude.sec / 1000000.0,
-        cargv_get_degree(&pos.latitude));
-    printf("longitude: %fdeg %fmin %fsec = %fdeg\n",
-        (double)pos.longitude.deg / 1000000.0,
-        (double)pos.longitude.min / 1000000.0,
-        (double)pos.longitude.sec / 1000000.0,
-        cargv_get_degree(&pos.longitude));
-    
     for (i = 0; i < outc; i++) {
-        if (cargv_oneof(&cargv, "OUTPUT", "day|daylen", "|", out + i, 1) > 0) {
+        if (cargv_oneof(&cargv, "OUTPUT", "state", "|", out + i, 1) > 0) {
+            r = print_state(&date, &pos);
+        }
+        if (cargv_oneof(&cargv, "OUTPUT", "is-day", "|", out + i, 1) > 0) {
+            r = print_is_day(&date, &pos);
+        }
+        else if (cargv_oneof(&cargv, "OUTPUT", "day", "|", out + i, 1) > 0) {
             print_daylen(&date, &pos);
         }
-        else if (cargv_oneof(&cargv, "OUTPUT",
-                "sun|sunrise-sunset|sunriset", "|", out + i, 1) > 0) {
+        else if (cargv_oneof(&cargv, "OUTPUT", "sun", "|", out + i, 1) > 0) {
             print_sunrise_sunset(&date, &pos);
         }
+        else if (cargv_oneof(&cargv, "OUTPUT", "sunrise", "|", out + i, 1) > 0) {
+            print_sunrise(&date, &pos);
+        }
+        else if (cargv_oneof(&cargv, "OUTPUT", "sunset", "|", out + i, 1) > 0) {
+            print_sunset(&date, &pos);
+        }
         else if (cargv_oneof(&cargv, "OUTPUT",
-                "civil-twilight|civil", "|", out + i, 1) > 0) {
+                "civil-twilight", "|", out + i, 1) > 0) {
             print_civil_twilight(&date, &pos);
         }
         else if (cargv_oneof(&cargv, "OUTPUT",
-                "nautical-twilight|nautical", "|", out + i, 1) > 0) {
+                "nautical-twilight", "|", out + i, 1) > 0) {
             print_nautical_twilight(&date, &pos);
         }
         else if (cargv_oneof(&cargv, "OUTPUT",
-                "astronomical-twilight|astronomical", "|", out + i, 1) > 0) {
+                "astronomical-twilight", "|", out + i, 1) > 0) {
             print_astronomical_twilight(&date, &pos);
         }
         cargv_shift(&cargv, 1);
@@ -257,5 +396,5 @@ int sunriset_main(int argc, const char **argv)
         fprintf(stderr, "%s: WARNING. Redundant arguments from `%s`.\n",
             SUNRISET_NAME, *(cargv.args-1));
     }
-    return 0;
+    return r;
 }
