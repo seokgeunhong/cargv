@@ -6,6 +6,7 @@
 #include <math.h>
 #include <limits.h>
 #include <stdint.h>
+#include <time.h>
 
 
 typedef const char             *_str;
@@ -13,8 +14,14 @@ typedef cargv_len_t             _len;
 typedef cargv_int_t             _sint;
 typedef cargv_uint_t            _uint;
 typedef struct cargv_date_t     _date;
+typedef struct cargv_time_t     _time;
 typedef struct cargv_degree_t   _degree;
 typedef struct cargv_geocoord_t _geocoord;
+
+#define _SINT_MIN   CARGV_SINT_MIN
+#define _SINT_MAX   CARGV_SINT_MAX
+#define _UINT_MAX   CARGV_UINT_MAX
+
 
 static _str opt_short_prefix = "-";
 static _len opt_short_prefix_len = 1;
@@ -31,14 +38,15 @@ static _str key_wildcard = "*";
 static _len key_wildcard_len = 1;
 
 
-/* See if text is empty.
+/* See if text is empty, only when entire is nonzero.
 
 [out] return: 1 if empty, else 0.
 [in] text, textlen: Text to match.
+[in] entire: If nonzero, text should end, or fail.
 */
-static int match_end(_str text, _len textlen)
+static int match_end(_str text, _len textlen, int entire)
 {
-    return textlen <= 0 ? 1 : 0;
+    return !(entire && textlen > 0);
 }
 
 /* See if the start of a text is matched to a pattern.
@@ -277,83 +285,37 @@ static int match_chars_range_all(
 /* Read an unsigned decimal integer, without any sign.
 
 [out] return: Number of characters succesfully read.
-              0 if none found.
-              <0 if error; See cargv_err_t.
+              0 if pattern not matched to a decimal number.
+              CARGV_VAL_OVERFLOW if value exceeds CARGV_UINT_MAX.
 [out] val: Read value.
 [out] end: Points end of matched text. If no match found, points start of text.
 [in] text, textlen: Text to match.
 [in] entire: If nonzero, text should end after matching, or fail.
-[in] maxv: If the value exceeds, return CARGV_VAL_OVERFLOW.
 */
 static int read_dec(
     _uint *val,
-    _str *end,
-    _str text, _len textlen, int entire, _uint minv, _uint maxv)
+    _str *end, _str text, _len textlen, int entire)
 {
     _str t, tend;
-    _uint a, b;
 
     *val = 0;
     *end = text;
 
     t = text;
     tend = text + textlen;
-    if (!match_chars_range(&tend, text, textlen, "09", 2, 0, 100))
-        return 0;   /* no match */
-    if (entire && !match_end(tend, textlen-(tend-t)))
-        return 0;   /* not entire */
+    if (!(match_chars_range(&t, t, tend-t, "09", 2, 0, 100)
+            && match_end(t, tend-t, entire)))
+        return 0;
 
-    a = maxv / 10u;
-    b = maxv % 10u;
-    for (; t < tend; t++) {
-        if (*val > a)
+    tend = t;
+    for (t = text; t < tend; t++) {
+        if (*val < _UINT_MAX / 10
+                || *val == _UINT_MAX / 10 && *t - '0' <= _UINT_MAX % 10)
+            *val = *val * 10 + (*t - '0');
+        else
             return CARGV_VAL_OVERFLOW;
-        if (*val == a && *t - '0' > b)
-            return CARGV_VAL_OVERFLOW;
-        *val = *val * 10 + (*t - '0');
     }
-    if (*val < minv)
-        return CARGV_VAL_OVERFLOW;
-
     *end = tend;
-    return *end - text;
-}
-
-/* Read an unsigned decimal integer, from the start of the text.
-
-[out] return: Number of characters succesfully read.
-              0 if none found.
-              <0 if error; See cargv_err_t.
-[out] val: Read value.
-[out] end: Points end of matched text. If no match found, points start of text.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
-[in] maxv: If the value is not in this range, return CARGV_VAL_OVERFLOW.
-*/
-static int read_ud(
-    _uint *val,
-    _str *end,
-    _str text, _len textlen, int entire, _uint minv, _uint maxv)
-{
-    int r;
-    _str t, tend;
-    _uint a, b;
-
-    *val = 0;
-    *end = text;
-
-    t = text;
-    tend = text + textlen;
-    if (match_chars_set(&t, t, tend-t, "+", 1, 0, 1)) {
-        /* pass `+` */
-    }
-    else if (match_chars_set(&t, t, tend-t, "-", 1, 0, 1)) {
-        return CARGV_VAL_OVERFLOW;
-    }
-    if ((r = read_dec(val, &t, t, tend-t, entire, minv, maxv)) <= 0)
-        return r;
-
-    *end = t;
     return *end - text;
 }
 
@@ -361,17 +323,13 @@ static int read_ud(
 
 [out] return: Number of characters succesfully read.
               0 if none found.
-              <0 if error; See cargv_err_t.
+              CARGV_VAL_OVERFLOW if not in [CARGV_SINT_MIN,CARGV_SINT_MAX].
 [out] val: Read value.
 [out] end: Points end of matched text. If no match found, points start of text.
 [in] text, textlen: Text to match.
 [in] entire: If nonzero, text should end after matching, or fail.
-[in] minv, maxv: If the value is not in this range, return CARGV_VAL_OVERFLOW.
 */
-static int read_sd(
-    _sint *val,
-    _str *end,
-    _str text, _len textlen, int entire, _sint minv, _sint maxv)
+static int read_sdec(_sint *val, _str *end, _str text, _len textlen, int entire)
 {
     int r;
     _uint u;
@@ -382,17 +340,58 @@ static int read_sd(
 
     t = text;
     tend = text + textlen;
-    if (match_chars_set(&t, t, tend-t, "+-", 2, 0, 1) && *text == '-') {
-        if ((r = read_dec(&u, &t, t, tend-t, entire, 0, (_uint)CARGV_SINT_MAX+1)) <= 0)
-            return r;
-        *val = -(_sint)u;
+
+    match_chars_set(&t, t, tend-t, "+-", 2, 0, 1);
+    if ((r = read_dec(&u, &t, t, tend-t, entire)) <= 0)
+        return r;
+
+    if (*text == '-') {
+        if (u < (_uint)_SINT_MAX+1)
+            *val = -(_sint)u;
+        else if (u == (_uint)_SINT_MAX+1)
+            *val = _SINT_MIN;
+        else
+            return CARGV_VAL_OVERFLOW;
     }
     else {
-        if ((r = read_dec(&u, &t, t, tend-t, entire, 0, CARGV_SINT_MAX)) <= 0)
-            return r;
-        *val = (_sint)u;
+        if (u <= (_uint)_SINT_MAX)
+            *val = (_sint)u;
+        else
+            return CARGV_VAL_OVERFLOW;
     }
-    if (*val < minv || *val > maxv)
+
+    *end = t;
+    return *end - text;
+}
+
+/* Read an unsigned decimal integer, from the start of the text.
+
+[out] return: Number of characters succesfully read.
+              0 if none found.
+              CARGV_VAL_OVERFLOW if not in [0,CARGV_UINT_MAX].
+[out] val: Read value.
+[out] end: Points end of matched text. If no match found, points start of text.
+[in] text, textlen: Text to match.
+[in] entire: If nonzero, text should end after matching, or fail.
+*/
+static int read_udec(
+    _uint *val,
+    _str *end, _str text, _len textlen, int entire)
+{
+    int r;
+    _str t, tend;
+
+    *val = 0;
+    *end = text;
+
+    t = text;
+    tend = text + textlen;
+
+    match_chars_set(&t, t, tend-t, "+-", 2, 0, 1);
+    if ((r = read_dec(val, &t, t, tend-t, entire)) <= 0)
+        return r;
+
+    if (*text == '-')
         return CARGV_VAL_OVERFLOW;
 
     *end = t;
@@ -425,22 +424,63 @@ static int read_date_iso8601(
     t = text;
     tend = text + textlen;
 
-    if ((r = read_sd(&val->year, &t, t, tend-t, 0, -9999, 9999)) <= 0)
-        return r;
-    if (val->year == 0)
-        return CARGV_VAL_OVERFLOW;  /* there is no year 0 */
-    if (match_chars_set(&t, t, tend-t, "-/", 2, 1, 1) <= 0)
+    if (!(read_sdec(&val->year, &t, t, tend-t, 0) > 0
+            && match_chars_set(&t, t, tend-t, "-/", 2, 1, 1)
+            && read_dec(&val->month, &t, t, tend-t, 0) > 0
+            && match_chars_set(&t, t, tend-t, "-/", 2, 1, 1)
+            && read_dec(&val->day, &t, t, tend-t, 0) > 0
+            && match_end(t, tend-t, entire)))
         return 0;
-    if ((r = read_dec(&val->month, &t, t, tend-t, 0, 1, 12)) <= 0)
-        return r;
-    if (match_chars_set(&t, t, tend-t, "-/", 2, 1, 1) <= 0)
-        return 0;
-    if ((r = read_dec(&val->day, &t, t, tend-t, entire, 1, 31)) <= 0)
-        return r;
 
     leap = val->month == 2
             && (!(val->year % 4) && (val->year % 100) || !(val->year % 400));
-    if (val->day > dom[val->month] + leap)
+
+    if (!(val->year >= -9999 && val->year != 0 && val->year <= 9999
+            && val->month >= 1 && val->month <= 12
+            && val->day >= 1 && val->day <= dom[val->month] + leap))
+        return CARGV_VAL_OVERFLOW;
+
+    *end = t;
+    return *end - text;
+
+}
+
+/* Read a modified ISO 8601 time, from the start of the text.
+
+    HH:MM[:SS]
+
+[out] return: Number of characters succesfully read.
+              0 if none found.
+              <0 if error; See cargv_err_t.
+[out] val: Read value.
+[out] end: Points end of matched text. If no match found, points start of text.
+[in] text, textlen: Text to match.
+*/
+static int read_time_iso8601(
+    _time *val,
+    _str *end, _str text, _len textlen, int entire)
+{
+    _str t, tend;
+
+    memset(val, 0, sizeof(*val));
+    *end = text;
+
+    t = text;
+    tend = text + textlen;
+
+    if (!(read_dec(&val->hour, &t, t, tend-t, 0) > 0
+            && match_chars_set(&t, t, tend-t, ":", 1, 1, 1)
+            && read_dec(&val->minute, &t, t, tend-t, 0) > 0)) {
+        return 0;
+    }
+    if (match_chars_set(&t, t, tend-t, ":", 1, 1, 1)) {
+        if (!(read_dec(&val->second, &t, t, tend-t, 0) > 0))
+            return 0;
+    }
+    if (!match_end(t, tend-t, entire))
+        return 0;
+
+    if (!(val->hour <= 24 && val->minute <= 60 && val->second <= 60))
         return CARGV_VAL_OVERFLOW;
 
     *end = t;
@@ -486,20 +526,19 @@ static int read_degree_iso6709(
     if (!match_chars_set(&t, t, tend-t, "+-", 2, 1, 1))
         return 0;
 
-    if ((alen = read_dec(&a, &t, t, tend-t, 0, 0, CARGV_SINT_MAX)) <= 0)
-        return alen;
+    if (!(alen = read_dec(&a, &t, t, tend-t, 0)) > 0)
+        return 0;
 
     /* dot is optinal */
     if (match_chars_set(&t, t, tend-t, ".", 1, 1, 1)) {
-        if ((blen = read_dec(&b, &t, t, tend-t, 0, 0, CARGV_SINT_MAX))
-                <= 0)
-            return blen;
+        if (!((blen = read_dec(&b, &t, t, tend-t, 0)) > 0))
+            return 0;
     }
     else {
         b = 0;
         blen = 0;
     }
-    if (entire && !match_end(t, tend-t))
+    if (!match_end(t, tend-t, entire))
         return 0;
 
     /* [D]DD[.DDDDDD] */
@@ -551,10 +590,8 @@ static int read_geocoord_iso6709(
     _geocoord *val,
     _str *end, _str text, _len textlen, int entire)
 {
-    int r;
+    int a, b;
     _str t, tend;
-    _uint a, b;
-    int alen, blen;
 
     memset(val, 0, sizeof(*val));
     *end = text;
@@ -562,15 +599,16 @@ static int read_geocoord_iso6709(
     t = text;
     tend = text + textlen;
 
-    if ((r = read_degree_iso6709(&val->latitude, &t, t, tend-t, 0)) <= 0)
-        return r;
-    if ((r = read_degree_iso6709(&val->longitude, &t, t, tend-t, 0)) <= 0)
-        return r;
+    if ((a = read_degree_iso6709(&val->latitude, &t, t, tend-t, 0)) == 0)
+        return 0;
+    if ((b = read_degree_iso6709(&val->longitude, &t, t, tend-t, 0)) == 0)
+        return 0;
     match_chars_set(&t, t, tend-t, "/", 1, 0, 1);   /* optional solidus */
-    if (entire && !match_end(t, tend-t))
+    if (!match_end(t, tend-t, entire))
         return 0;
 
-    if (!(val->latitude.deg >= -90000000
+    if (a < 0 || b < 0
+            || !(val->latitude.deg >= -90000000
             && val->latitude.deg <= 90000000
             && val->longitude.deg >= -180000000
             && val->longitude.deg <= 180000000))
@@ -749,7 +787,7 @@ int cargv_int(
     v = vals;
     a = cargv->args;
     while (v - vals < valc && a < cargv->argend) {
-        r = read_sd(v, &e, *a, strlen(*a), 1, CARGV_SINT_MIN, CARGV_SINT_MAX);
+        r = read_sdec(v, &e, *a, strlen(*a), 1);
         if (r < 0)
             return err_val_result(cargv, name, "integer", *a, r);
         if (r == 0)
@@ -774,7 +812,7 @@ int cargv_uint(
     v = vals;
     a = cargv->args;
     while (v - vals < valc && a < cargv->argend) {
-        r = read_ud(v, &e, *a, strlen(*a), 1, 0, CARGV_UINT_MAX);
+        r = read_udec(v, &e, *a, strlen(*a), 1);
         if (r < 0)
             return err_val_result(cargv, name, "unsigned integer", *a, r);
         if (r == 0)
@@ -802,6 +840,31 @@ int cargv_date(
         r = read_date_iso8601(v, &e, *a, strlen(*a), 1);
         if (r < 0)
             return err_val_result(cargv, name, "date", *a, r);
+        if (r == 0)
+            break;
+        v++;
+        a++;
+    }
+    return (int)(v-vals);
+}
+
+int cargv_time(
+    struct cargv_t *cargv,
+    const char *name,
+    struct cargv_time_t *vals, cargv_len_t valc)
+{
+    int r;
+    _time *v;
+    _str *a, e;
+
+    memset(vals, 0, valc * sizeof(*vals));
+
+    v = vals;
+    a = cargv->args;
+    while (v - vals < valc && a < cargv->argend) {
+        r = read_time_iso8601(v, &e, *a, strlen(*a), 1);
+        if (r < 0)
+            return r;
         if (r == 0)
             break;
         v++;
@@ -861,7 +924,34 @@ int cargv_geocoord(
 }
 
 
-CARGV_EXPORT
+time_t cargv_get_today(struct cargv_date_t *val)
+{
+    time_t t;
+    struct tm *lt;
+
+    time(&t);
+    lt = localtime(&t);
+
+    val->year = lt->tm_year;
+    val->month = lt->tm_mon;
+    val->day = lt->tm_mday;
+    return t;
+}
+
+time_t cargv_get_now(struct cargv_time_t *val)
+{
+    time_t t;
+    struct tm *lt;
+
+    time(&t);
+    lt = localtime(&t);
+
+    val->hour = lt->tm_hour;
+    val->minute = lt->tm_mon;
+    val->second = lt->tm_mday;
+    return t;
+}
+
 double cargv_get_degree(const struct cargv_degree_t *val)
 {
     return (double)val->deg / 1E+6

@@ -140,6 +140,7 @@ TEST_F(Test_cargv, sint_overflow)
     static const char *argv[] = {_name,
         "9223372036854775807", "9223372036854775808",
         "-9223372036854775808", "-9223372036854775809",
+        "18446744073709551616",
     };
     cargv_int_t val[1];
 
@@ -152,6 +153,8 @@ TEST_F(Test_cargv, sint_overflow)
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
     EXPECT_EQ(val[0], -9223372036854775808);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
@@ -225,8 +228,26 @@ TEST_F(Test_cargv, date)
 TEST_F(Test_cargv, date_err)
 {
     static const char *argv[] = {_name,
+        "2018-11--01", "2018+02-29", "201802-29"
+    };
+    cargv_date_t v[1];
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), 0);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), 0);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), 0);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, date_overflow)
+{
+    static const char *argv[] = {_name,
         "0000-12-24", "2018-00-01", "2018-13-01", "2018-11-00",
-        "2018-11--01", "2018-02-29",
+        "2018-02-29", "201802-01-01"
     };
     cargv_date_t v[1];
 
@@ -240,7 +261,7 @@ TEST_F(Test_cargv, date_err)
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), 0);
+    EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
@@ -282,7 +303,7 @@ TEST_F(Test_cargv, degree)
 TEST_F(Test_cargv, degree_err)
 {
     static const char *argv[] = {_name,
-        "-361", "+1163", "-112278.01", "13239.5", "0",
+        "-361", "+1163", "-112278.01", "13239.5", "0", "+720.12.12"
     };
     cargv_degree_t v[1];
 
@@ -293,6 +314,8 @@ TEST_F(Test_cargv, degree_err)
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);

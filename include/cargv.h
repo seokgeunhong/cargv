@@ -32,6 +32,11 @@ struct cargv_date_t {
     cargv_uint_t month, day;
 };
 
+struct cargv_time_t {
+    cargv_int_t hour;
+    cargv_uint_t minute, second;
+};
+
 struct cargv_degree_t {
     cargv_int_t deg;    /* ddd.dddddd */
     cargv_int_t min;    /*  mm.mmmmmm */
@@ -204,6 +209,20 @@ int cargv_geocoord(
     const char *name,
     struct cargv_geocoord_t *vals, cargv_len_t valc);
 
+
+/* Get current date.
+
+[out] return:   time_t value of current time.
+*/
+CARGV_EXPORT
+time_t cargv_get_today(struct cargv_date_t *val);
+
+/* Get current time.
+
+[out] return:   time_t value of current time.
+*/
+CARGV_EXPORT
+time_t cargv_get_now(struct cargv_time_t *val);
 
 /* Convert to degree with decimal fraction */
 CARGV_EXPORT
