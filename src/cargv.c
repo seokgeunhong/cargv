@@ -6,7 +6,6 @@
 #include <math.h>
 #include <limits.h>
 #include <stdint.h>
-#include <time.h>
 
 
 typedef const char             *_str;
@@ -29,13 +28,6 @@ static _str opt_long_prefix  = "--";
 static _len opt_long_prefix_len = 2;
 static _str opt_wildcard = "*";
 static _len opt_wildcard_len = 1;
-
-static _str key_short_prefix = "-";
-static _len key_short_prefix_len = 1;
-static _str key_long_prefix  = "--";
-static _len key_long_prefix_len = 2;
-static _str key_wildcard = "*";
-static _len key_wildcard_len = 1;
 
 
 /* See if text is empty, only when entire is nonzero.
@@ -62,28 +54,6 @@ static int match_str(
     _str pattern, _len patternlen)
 {
     if (textlen >= patternlen && memcmp(text, pattern, patternlen) == 0) {
-        *end = text + patternlen;
-        return patternlen;
-    }
-    else {
-        *end = text;
-        return 0;
-    }
-}
-
-/* See if a text is matched to a pattern entirely.
-
-[out] return: Length of matched text. 0 if no match found.
-[out] end: Points end of matched text. If no match found, points start of text.
-[in]  text, textlen: Text to search.
-[in]  pattern, patternlen: Pattern to search for.
-*/
-static int match_str_all(
-    _str *end,
-    _str text, _len textlen,
-    _str pattern, _len patternlen)
-{
-    if (textlen == patternlen && memcmp(text, pattern, patternlen) == 0) {
         *end = text + patternlen;
         return patternlen;
     }
@@ -188,30 +158,6 @@ static int match_chars(
     return *end - text;
 }
 
-/* See if all characters in a text match to a pattern.
-
-[out] return: Length of the match. 0 if match found less than textlen.
-[out] end: Points end of matched text. If no match found, points start of text.
-[in]  text, textlen: Text to search.
-[in]  pattern, patternlen: Pattern to search for.
-*/
-static int match_chars_all(
-    f_match_char *matcher,
-    _str *end,
-    _str text, _len textlen,
-    _str pattern, _len patternlen)
-{
-    _str t, tend;
-
-    *end = text;
-    for (t = text, tend = text + textlen; t < tend; t++) {
-        if (!(*matcher)(*t, pattern, patternlen))
-            return 0;
-    }
-    *end = t;
-    return *end - text;
-}
-
 /* See how many characters from the start of a text are in a charset.
 
 [out] return: Length of the match. 0 if match found less than minc.
@@ -231,22 +177,6 @@ static int match_chars_set(
         end, text, textlen, pattern, patternlen, minc, maxc);
 }
 
-/* See if all characters in a text are in a charset.
-
-[out] return: Length of the match. 0 if match found less than textlen.
-[out] end: Points end of matched text. If no match found, points start of text.
-[in] text, textlen: Text to search.
-[in] pattern, patternlen: A character set to search for.
-*/
-static int match_chars_set_all(
-    _str *end,
-    _str text, _len textlen,
-    _str pattern, _len patternlen)
-{
-    return match_chars_all(&match_char_set,
-            end, text, textlen, pattern, patternlen);
-}
-
 /* See how many characters from the start of a text are in ranges.
 
 [out] return: Length of the match. 0 if match found less than minc.
@@ -264,22 +194,6 @@ static int match_chars_range(
 {
     return match_chars(&match_char_range,
         end, text, textlen, pattern, patternlen,minc, maxc);
-}
-
-/* See if all characters in a text is in ranges.
-
-[out] return: Length of the match. 0 if match found less than minc.
-[out] end: Points end of matched text. If no match found, points start of text.
-[in]  text, textlen: Text to search.
-[in]  pattern, patternlen: Character pair list. See match_char_range().
-*/
-static int match_chars_range_all(
-    _str *end,
-    _str text, _len textlen,
-    _str pattern, _len patternlen)
-{
-    return match_chars_all(&match_char_range,
-            end, text, textlen, pattern, patternlen);
 }
 
 /* Read an unsigned decimal integer, without any sign.
@@ -310,7 +224,7 @@ static int read_dec(
     tend = t;
     for (t = text; t < tend; t++) {
         if (*val < _UINT_MAX / 10
-                || *val == _UINT_MAX / 10 && *t - '0' <= _UINT_MAX % 10)
+                || (*val == _UINT_MAX / 10 && *t - '0' <= _UINT_MAX % 10))
             *val = *val * 10 + (*t - '0');
         else
             return CARGV_VAL_OVERFLOW;
@@ -413,8 +327,9 @@ static int read_date_iso8601(
     _date *val,
     _str *end, _str text, _len textlen, int entire)
 {
-    static const dom[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-    int r;
+    static const int dom[] = {
+        0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+    };
     _str t, tend;
     int leap;
 
@@ -433,7 +348,7 @@ static int read_date_iso8601(
         return 0;
 
     leap = val->month == 2
-            && (!(val->year % 4) && (val->year % 100) || !(val->year % 400));
+            && ((!(val->year % 4) && (val->year % 100)) || !(val->year % 400));
 
     if (!(val->year >= -9999 && val->year != 0 && val->year <= 9999
             && val->month >= 1 && val->month <= 12
@@ -511,7 +426,6 @@ static int read_degree_iso6709(
     _degree *val,
     _str *end, _str text, _len textlen, int entire)
 {
-    int r;
     _str t, tend;
     _uint a, b;
     int alen, blen;
@@ -526,7 +440,7 @@ static int read_degree_iso6709(
     if (!match_chars_set(&t, t, tend-t, "+-", 2, 1, 1))
         return 0;
 
-    if (!(alen = read_dec(&a, &t, t, tend-t, 0)) > 0)
+    if ((alen = read_dec(&a, &t, t, tend-t, 0)) <= 0)
         return 0;
 
     /* dot is optinal */
@@ -678,7 +592,8 @@ int cargv_opt(struct cargv_t *cargv, const char *optlist)
     o = optlist;
     wildcard
         = match_str(&o, o, oend-o, opt_short_prefix, opt_short_prefix_len)
-        && match_str_all(&o, o, oend-o, opt_wildcard, opt_wildcard_len);
+        && match_str(&o, o, oend-o, opt_wildcard, opt_wildcard_len)
+        && match_end(o, oend-o, 1);
 
     /* Split optlist */
     o = optlist;
@@ -697,7 +612,7 @@ int cargv_opt(struct cargv_t *cargv, const char *optlist)
         while (o < oend) {
             o += opt_long_prefix_len;   /* already matched */
             unmatch_str(&lopt, o, oend-o, opt_long_prefix, opt_long_prefix_len);
-            if (match_str_all(&a, a, aend-a, o, lopt-o))
+            if (match_str(&a, a, aend-a, o, lopt-o) && match_end(a, aend-a, 1))
                 return 1;
             o = lopt;
         }
@@ -712,9 +627,9 @@ int cargv_opt(struct cargv_t *cargv, const char *optlist)
         /* Find in short options */
         o = optlist;
         if (match_str(&o, o, lopt-o, opt_short_prefix, opt_short_prefix_len)
-                && match_chars_set_all(&a, a, aend-a, o, lopt-o)) {
+                && match_chars_set(&a, a, aend-a, o, lopt-o, 1, lopt-o)
+                && match_end(a, aend-a, 1))
             return 1;
-        }
     }
     return 0;
 }
@@ -742,7 +657,6 @@ int cargv_oneof(
     const char *list, const char *sep,
     const char **vals, cargv_len_t valc)
 {
-    int r;
     _str *val, *arg;
     _str listend, t, tend;
     _str aend, a;
@@ -760,7 +674,7 @@ int cargv_oneof(
         t = list;
         while (t < listend) {
             unmatch_str(&tend, t, listend-t, sep, seplen);
-            if (match_str_all(&a, a, aend-a, t, tend-t))
+            if (match_str(&a, a, aend-a, t, tend-t) && match_end(a, aend-a, 1))
                 break;
             t = tend + seplen;
         }
@@ -768,7 +682,7 @@ int cargv_oneof(
             *val++ = *arg;
         else
             break;
-        *arg++;
+        arg++;
     }
     return (int)(val-vals);
 }

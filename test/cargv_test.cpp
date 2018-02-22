@@ -147,12 +147,12 @@ TEST_F(Test_cargv, sint_overflow)
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], 9223372036854775807);
+    EXPECT_EQ(val[0], INT64_C(9223372036854775807));
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], -9223372036854775808);
+    EXPECT_EQ(val[0], INT64_C(-9223372036854775807)-1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
@@ -189,7 +189,7 @@ TEST_F(Test_cargv, uint_overflow)
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_uint(&cargv, "UINT", val, 1), 1);
-    EXPECT_EQ(val[0], 18446744073709551615);
+    EXPECT_EQ(val[0], UINT64_C(18446744073709551615));
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_uint(&cargv, "UINT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);

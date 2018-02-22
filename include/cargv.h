@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 typedef int64_t     cargv_int_t;
 typedef uint64_t    cargv_uint_t;
@@ -33,8 +34,7 @@ struct cargv_date_t {
 };
 
 struct cargv_time_t {
-    cargv_int_t hour;
-    cargv_uint_t minute, second;
+    cargv_uint_t hour, minute, second;
 };
 
 struct cargv_degree_t {
@@ -180,6 +180,20 @@ int cargv_date(
     struct cargv_t *cargv,
     const char *name,
     struct cargv_date_t *vals, cargv_len_t valc);
+
+
+/* Read time value arguments.
+
+[out] return:   Number of values successfully read.
+                CARGV_VAL_OVERFLOW if any read value are not valid.
+[out] vals:     Array to read values into.
+[in]  valc:     Max number of values to read in. Values beyond will be ignored.
+*/
+CARGV_EXPORT
+int cargv_time(
+    struct cargv_t *cargv,
+    const char *name,
+    struct cargv_time_t *vals, cargv_len_t valc);
 
 
 /* Read degree value arguments.
