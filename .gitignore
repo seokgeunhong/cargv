@@ -1,10 +1,6 @@
 
-# cmake build
-build/
-
 # bazel.build
 bazel-*
 
 # Microsoft Visual Studio Code
 .vscode/
-

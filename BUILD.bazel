@@ -1,54 +1,9 @@
-# `sunriset` package
-# ------------------
+# `cargv`
+# =======
 
 # static library
 cc_library(
     name='static',
-    visibility=['//visibility:public'],
-    includes=[
-        'include',
-    ],
-    hdrs=[
-        'include/sunriset_version.h',
-        'include/sunriset.h',
-    ],
-    srcs=[
-        'src/sunriset.c',
-    ],
-)
-
-# static library
-cc_library(
-    name='bin',
-    visibility=['//visibility:public'],
-    includes=[
-        'include',
-    ],
-    hdrs=[
-    ],
-    srcs=[
-        'src/bin.c',
-    ],
-    deps=[
-        'static',
-        'cargv',
-    ],
-)
-
-# executable binary
-cc_binary(
-    name='sunriset',
-    srcs=[
-        'src/main.c',
-    ],
-    deps=[
-        'bin',
-    ],
-)
-
-# cargv
-cc_library(
-    name='cargv',
     visibility=['//visibility:public'],
     includes=[
         'include',
@@ -59,6 +14,18 @@ cc_library(
     ],
     srcs=[
         'src/cargv.c',
+    ],
+)
+
+# version printing binary
+cc_binary(
+    name='version',
+    includes=[
+        'include',
+    ],
+    srcs=[
+        'include/cargv_version.h',
+        'src/cargv_version.c',
     ],
 )
 

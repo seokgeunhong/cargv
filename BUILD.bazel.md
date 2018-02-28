@@ -1,14 +1,14 @@
-Build `sunriset` with bazel
+Build `cargv` with bazel
 =====
 
 This project is written using [bazel](http://www.bazel.build/) 0.10.0.
 
-### Build binary
+## Build static library:
 
-```bazel build //:sunriset```
+```bazel build //:static```
 
-Executable `sunriset` or `sunriset.exe` is found under `bazel-bin/`.
+`libcargv.a` or `cargv.lib` is found under `bazel-bin/`.
 
-### Run all tests:
+## Run all tests:
 
 ```bazel test //:test-all```

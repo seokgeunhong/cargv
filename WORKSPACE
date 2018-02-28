@@ -1,7 +1,7 @@
-# `sunriset` workspace
-# ====================
+# `cargv`
+# =======
 
-workspace(name='sunriset')
+workspace(name='cargv')
 
 
 # [googletest](https://github.com/google/googletest/)

@@ -1,37 +1,16 @@
-# `sunriset` tests
-# ----------------
+# `cargv` tests
+# =============
 
 test_suite(
     name='test-all',
 )
 
 cc_test(
-    name='test-sunriset',
+    name='test-cargv',
     timeout='short',
     srcs=glob(include=['*_test.cpp',],),
     deps=[
-        '//:bin',
-        '//:cargv',
-        '@com_google_googletest//:gtest_main',
-    ],
-)
-
-cc_test(
-    name='test-bin',
-    timeout='short',
-    srcs=['bin_test.cpp',],
-    deps=[
-        '//:bin',
-        '@com_google_googletest//:gtest_main',
-    ],
-)
-
-cc_test(
-    name='test-cargv',
-    timeout='short',
-    srcs=['cargv_test.cpp',],
-    deps=[
-        '//:cargv',
+        '//:static',
         '@com_google_googletest//:gtest_main',
     ],
 )
