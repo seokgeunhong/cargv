@@ -3,7 +3,7 @@
 
 # static library
 cc_library(
-    name='static',
+    name='cargv',
     visibility=['//visibility:public'],
     includes=[
         'include',
@@ -19,7 +19,7 @@ cc_library(
 
 # version printing binary
 cc_binary(
-    name='version',
+    name='cargv-version',
     includes=[
         'include',
     ],

@@ -1,14 +1,18 @@
-Build `cargv` with bazel
+Build `cargv`
 =====
 
 This project is written using [bazel](http://www.bazel.build/) 0.10.0.
 
-## Build static library:
+## Build static library
 
-```bazel build //:static```
+```
+bazel build //:cargv
+```
 
 `libcargv.a` or `cargv.lib` is found under `bazel-bin/`.
 
-## Run all tests:
+## Run all tests
 
-```bazel test //:test-all```
+```
+bazel test //:test-all
+```
