@@ -10,19 +10,20 @@
 
 
 #if (CARGV_VERSION_STATE == dev)
-    #define CARGV_VERSION_STATE_NUMBER -99
-#elif (CARGV_VERSION_STATE == rc)
-    #define CARGV_VERSION_STATE_NUMBER -1
-#else
     #define CARGV_VERSION_STATE_NUMBER 0
+#elif (CARGV_VERSION_STATE == rc)
+    #define CARGV_VERSION_STATE_NUMBER 1
+#else
+    #define CARGV_VERSION_STATE_NUMBER 100
 #endif
 
 
 #define CARGV_VERSION \
-    __CARGV_VERSION_NULBER(\
+    __CARGV_VERSION_NUMBER(\
         CARGV_VERSION_MAJOR,\
         CARGV_VERSION_MINOR,\
-        CARGV_VERSION_PATCH)
+        CARGV_VERSION_PATCH,\
+        CARGV_VERSION_STATE_NUMBER)
 
 #define CARGV_VERSION_STRING \
     __CARGV_VERSION_STRING(\
@@ -32,7 +33,7 @@
         CARGV_VERSION_STATE)
 
 
-#define __CARGV_VERSION_NULBER(m, n, p, s) ((m)<<24 | (n)<<16 | (p)<<8 | (s))
+#define __CARGV_VERSION_NUMBER(m, n, p, s) ((m)<<24 | (n)<<16 | (p)<<8 | (s))
 #define __CARGV_QUOTE(s) #s
 #define __CARGV_VERSION_STRING(m, n, p, s) \
     __CARGV_QUOTE(m) "." __CARGV_QUOTE(n) "." __CARGV_QUOTE(p) "."\

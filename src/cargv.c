@@ -1,11 +1,30 @@
 
 #include "cargv.h"
+#include "cargv_version.h"
+
 #include <stdio.h>
 #include <memory.h>
 #include <string.h>
 #include <math.h>
 #include <limits.h>
 #include <stdint.h>
+
+
+cargv_version_num_t cargv_version(struct cargv_version_t *ver)
+{
+    if (ver) {
+        ver->major = CARGV_VERSION_MAJOR;
+        ver->minor = CARGV_VERSION_MINOR;
+        ver->patch = CARGV_VERSION_PATCH;
+        ver->state = CARGV_VERSION_STATE_NUMBER;
+    }
+    return CARGV_VERSION;
+}
+
+const char *cargv_version_string()
+{
+    return CARGV_VERSION_STRING;
+}
 
 
 typedef const char             *_str;

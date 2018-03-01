@@ -1,5 +1,6 @@
 
 #include "cargv.h"
+#include "cargv_version.h"
 #include "gtest/gtest.h"
 
 #include <stdio.h>
@@ -7,8 +8,6 @@
 
 
 #define _c(a)    (sizeof(a)/sizeof((a)[0]))
-#define EXPECT_APPROX(a, b, delta) \
-    EXPECT_LE(fabs((a)-(b)), (delta))
 
 
 class Test_cargv : public testing::Test {
@@ -24,6 +23,19 @@ protected:
 
 const char *Test_cargv::_name = "cargv-test";
 
+
+TEST(Test_cargv_lib, version)
+{
+    cargv_version_t ver;
+
+    EXPECT_EQ(cargv_version(&ver), CARGV_VERSION);
+    EXPECT_EQ(ver.major, CARGV_VERSION_MAJOR);
+    EXPECT_EQ(ver.minor, CARGV_VERSION_MINOR);
+    EXPECT_EQ(ver.patch, CARGV_VERSION_PATCH);
+    EXPECT_EQ(ver.state, CARGV_VERSION_STATE_NUMBER);
+
+    EXPECT_STREQ(cargv_version_string(), CARGV_VERSION_STRING);
+}
 
 TEST_F(Test_cargv, noarg)
 {

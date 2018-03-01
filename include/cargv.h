@@ -8,6 +8,14 @@
 #include <stdint.h>
 #include <time.h>
 
+
+typedef int32_t cargv_version_num_t;
+
+struct cargv_version_t {
+    short major, minor, patch, state;
+};
+
+
 typedef int64_t     cargv_int_t;
 typedef uint64_t    cargv_uint_t;
 typedef ptrdiff_t   cargv_len_t;
@@ -54,6 +62,19 @@ struct cargv_geocoord_t {
 #else
   #define CARGV_EXPORT
 #endif
+
+
+/* Get version info.
+
+[out] return:   32bit version number. Newer version has bigger number.
+[out] version:  Contains version info., if not null.
+*/
+CARGV_EXPORT
+cargv_version_num_t cargv_version(struct cargv_version_t *version);
+
+/* Get human readable version string. */
+CARGV_EXPORT
+const char *cargv_version_string();
 
 
 /* Initialize cargv object.
