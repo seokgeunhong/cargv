@@ -1,6 +1,6 @@
+# build output
+out/
 
-# bazel.build
-bazel-*
-
-# Microsoft Visual Studio Code
-.vscode/
+# intermediate files
+.sconsign.dblite
+*.pyc

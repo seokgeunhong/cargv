@@ -1,0 +1,147 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    
+    // Need to change default shell to bash. In settings.json;
+    // #"terminal.integrated.shell.windows": "c:\\msys64\\usr\\bin\\bash.exe",
+    // "terminal.integrated.shell.windows": "c:\\Windows\\System32\\bash.exe",  // WSL bash
+    // "terminal.integrated.shellArgs.windows": ["-c"]
+    
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "cargv: build x64-linux-gcc",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "target-os=x64-linux", "compiler=gcc",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: clean x64-linux-gcc",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "--clean",
+                "target-os=x64-linux", "compiler=gcc",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: build x64-windows-mingw-gcc",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "target-os=x64-windows", "compiler=mingw-gcc",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: clean x64-windows-mingw-gcc",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "--clean",
+                "target-os=x64-windows", "compiler=mingw-gcc",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: build x64-windows-msys-gcc",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "target-os=x64-windows-msys", "compiler=gcc",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: clean x64-windows-msys-gcc",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "--clean",
+                "target-os=x64-windows-msys", "compiler=gcc",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: build x64-linux-clang",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "target-os=x64-linux", "compiler=clang",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: clean x64-linux-clang",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "--clean",
+                "target-os=x64-linux", "compiler=clang",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: build x64-windows-mingw-clang",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "target-os=x64-windows", "compiler=mingw-clang",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: clean x64-windows-mingw-clang",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+                "--clean",
+                "target-os=x64-windows", "compiler=mingw-clang",
+                "test", "version",
+            ],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cargv: clean all",
+            "type": "shell",
+            "command": "rm",
+            "args": ["--dir", "--force", "--recursive", "out/"],
+            "group": "build",
+            "presentation": {"reveal": "silent"},
+            "problemMatcher": "$gcc"
+        }
+    ]
+}

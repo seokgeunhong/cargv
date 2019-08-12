@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "**/*.pyc": true,  // Python cache
+        "**/.sconsign.dblite": true,  // SCons DB
+    },
+}
