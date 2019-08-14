@@ -20,14 +20,4 @@ version = env.Program(
 env.Alias('version', version)
 
 
-test = env.Program(
-    target='test/test-cargv',
-    source=['test/cargv_test.cpp'],
-    CPPPATH=['googletest/googletest/include', 'include'],
-    LIBS=['cargv','gtest_main'],
-    LIBPATH=['lib','googletest/googletest/lib'],
-)
-env.Alias('test', test)
-
-
 env.Default([lib])

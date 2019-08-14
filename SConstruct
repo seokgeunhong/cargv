@@ -36,7 +36,13 @@ SConscript(
 )
 
 SConscript(
-    'gtest.SConscript',
+    'googletest.SConscript',
+    exports='env',
+    variant_dir=os.path.join('out', toolchain.id),
+)
+
+SConscript(
+    'test.SConscript',
     exports='env',
     variant_dir=os.path.join('out', toolchain.id),
 )
