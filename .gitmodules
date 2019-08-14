@@ -3,4 +3,4 @@
 	url = https://github.com/google/googletest.git
 [submodule "toolchain"]
 	path = toolchain
-	url = ssh://seokgeun@ninedragon.iptime.org:8022/~/git/scons-toolchain.git
+	url = ../scons-toolchain.git
