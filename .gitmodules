@@ -4,3 +4,4 @@
 [submodule "toolchain"]
 	path = toolchain
 	url = ../scons-toolchain.git
+	branch = master
