@@ -32,7 +32,8 @@ TEST(Test_cargv_lib, version)
     EXPECT_EQ(ver.major, CARGV_VERSION_MAJOR);
     EXPECT_EQ(ver.minor, CARGV_VERSION_MINOR);
     EXPECT_EQ(ver.patch, CARGV_VERSION_PATCH);
-    EXPECT_EQ(ver.state, CARGV_VERSION_STATE_NUMBER);
+    EXPECT_STREQ(ver.state, CARGV_VERSION_STATE_STRING);
+    EXPECT_EQ(ver.release, CARGV_VERSION_RELEASE);
 
     EXPECT_STREQ(cargv_version_string(), CARGV_VERSION_STRING);
 }
@@ -156,6 +157,7 @@ TEST_F(Test_cargv, sint_overflow)
     };
     cargv_int_t val[1];
 
+    testing::internal::CaptureStderr();
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
@@ -171,6 +173,7 @@ TEST_F(Test_cargv, sint_overflow)
     EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
 }
 
 TEST_F(Test_cargv, uint)
@@ -200,6 +203,7 @@ TEST_F(Test_cargv, uint_overflow)
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
     EXPECT_EQ(cargv_uint(&cargv, "UINT", val, 1), 1);
     EXPECT_EQ(val[0], UINT64_C(18446744073709551615));
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
@@ -208,6 +212,7 @@ TEST_F(Test_cargv, uint_overflow)
     EXPECT_EQ(cargv_uint(&cargv, "UINT", val, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
 }
 
 TEST_F(Test_cargv, date)
@@ -265,6 +270,7 @@ TEST_F(Test_cargv, date_overflow)
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
     EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), CARGV_VAL_OVERFLOW);
@@ -278,6 +284,123 @@ TEST_F(Test_cargv, date_overflow)
     EXPECT_EQ(cargv_date(&cargv, "DATE", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
+}
+
+TEST_F(Test_cargv, time_utc)
+{
+    static const char *argv[] = {_name,
+        "4Z", "00:00Z", "24:00Z", "14:59:27Z", "23:59Z"
+    };
+    int carg = _c(argv);
+    cargv_time_t v[_c(argv)];
+
+    ASSERT_EQ(cargv_init(&cargv, _name, carg, argv), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    EXPECT_EQ(cargv_time(&cargv, "TEST", v, 1), 1);
+    EXPECT_EQ(v[0].hour, 4);
+    EXPECT_EQ(v[0].minute, 0);
+    EXPECT_EQ(v[0].second, 0);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    EXPECT_EQ(cargv_time(&cargv, "TEST", v, carg+1), carg);
+    EXPECT_EQ(v[0].hour, 0);
+    EXPECT_EQ(v[0].minute, 0);
+    EXPECT_EQ(v[0].second, 0);
+    EXPECT_EQ(v[1].hour, 24);
+    EXPECT_EQ(v[1].minute, 0);
+    EXPECT_EQ(v[1].second, 0);
+    EXPECT_EQ(v[2].hour, 14);
+    EXPECT_EQ(v[2].minute, 59);
+    EXPECT_EQ(v[2].second, 27);
+    EXPECT_EQ(v[3].hour, 23);
+    EXPECT_EQ(v[3].minute, 59);
+    EXPECT_EQ(v[3].second, 0);
+    EXPECT_EQ(cargv_shift(&cargv, carg), carg);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, time_zone)
+{
+    static const char *argv[] = {_name,
+        "4+00", "00:00+09:20", "7:20:34+9:30", "18:40-0930"
+    };
+    int carg = _c(argv);
+    cargv_time_t v[_c(argv)];
+
+    ASSERT_EQ(cargv_init(&cargv, _name, carg, argv), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    EXPECT_EQ(cargv_time(&cargv, "TEST", v, 1), 1);
+    EXPECT_EQ(v[0].hour, 4);
+    EXPECT_EQ(v[0].minute, 0);
+    EXPECT_EQ(v[0].second, 0);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    EXPECT_EQ(cargv_time(&cargv, "TEST", v, carg+1), carg);
+    EXPECT_EQ(v[0].hour, -10);
+    EXPECT_EQ(v[0].minute, 40);
+    EXPECT_EQ(v[0].second, 0);
+    EXPECT_EQ(v[1].hour, -3);
+    EXPECT_EQ(v[1].minute, 50);
+    EXPECT_EQ(v[1].second, 34);
+    EXPECT_EQ(v[2].hour, 28);
+    EXPECT_EQ(v[2].minute, 10);
+    EXPECT_EQ(v[2].second, 0);
+    EXPECT_EQ(cargv_shift(&cargv, carg), carg);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, time_err)
+{
+    static const char *argv[] = {_name,
+        "-2:00",
+    };
+    int carg = _c(argv);
+    cargv_time_t v[1];
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    while (carg > 0) {
+        EXPECT_EQ(cargv_time(&cargv, "TEST", v, 1), 0);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, time_overflow)
+{
+    static const char *argv[] = {_name,
+        "24:01", "25:00", "0:60", "0900"
+    };
+    int carg = _c(argv);
+    cargv_time_t v[1];
+
+    testing::internal::CaptureStderr();
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    while (carg > 0) {
+        EXPECT_EQ(cargv_time(&cargv, "TEST", v, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
+}
+
+TEST_F(Test_cargv, time_zone_overflow)
+{
+    static const char *argv[] = {_name,
+        "4+13", "4+1201", "4-13", "4-1201", "12-00:60", "1+200"
+    };
+    int carg = _c(argv);
+    cargv_time_t v[1];
+
+    testing::internal::CaptureStderr();
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    while (carg > 0) {
+        EXPECT_EQ(cargv_time(&cargv, "TEST", v, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1); --carg;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
 }
 
 TEST_F(Test_cargv, degree)
@@ -321,6 +444,7 @@ TEST_F(Test_cargv, degree_err)
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
@@ -334,6 +458,7 @@ TEST_F(Test_cargv, degree_err)
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
 }
 
 TEST_F(Test_cargv, geocoord)
@@ -372,6 +497,7 @@ TEST_F(Test_cargv, geocoord_err)
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(argv), argv), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
     EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), CARGV_VAL_OVERFLOW);
@@ -381,4 +507,5 @@ TEST_F(Test_cargv, geocoord_err)
     EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::GetCapturedStderr();
 }

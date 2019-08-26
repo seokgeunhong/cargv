@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/out/x64-linux-gcc/test/test-cargv",
             "args": [],
-            "stopAtEntry": true,
+            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,

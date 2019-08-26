@@ -16,7 +16,8 @@ cargv_version_num_t cargv_version(struct cargv_version_t *ver)
         ver->major = CARGV_VERSION_MAJOR;
         ver->minor = CARGV_VERSION_MINOR;
         ver->patch = CARGV_VERSION_PATCH;
-        ver->state = CARGV_VERSION_STATE_NUMBER;
+        ver->state = CARGV_VERSION_STATE_STRING;
+        ver->release = CARGV_VERSION_RELEASE;
     }
     return CARGV_VERSION;
 }
@@ -341,6 +342,7 @@ static int read_udec(
 [out] val: Read value.
 [out] end: Points end of matched text. If no match found, points start of text.
 [in] text, textlen: Text to match.
+[in] entire: If nonzero, text should end after matching, or fail.
 */
 static int read_date_iso8601(
     _date *val,
@@ -381,7 +383,7 @@ static int read_date_iso8601(
 
 /* Read a modified ISO 8601 time, from the start of the text.
 
-    HH:MM[:SS]
+    HH:MM[:SS][Z|(+|-)HH[[:]MM]]
 
 [out] return: Number of characters succesfully read.
               0 if none found.
@@ -389,33 +391,76 @@ static int read_date_iso8601(
 [out] val: Read value.
 [out] end: Points end of matched text. If no match found, points start of text.
 [in] text, textlen: Text to match.
+[in] entire: If nonzero, text should end after matching, or fail.
+
+Read time is in range from -12:00:00 to 36:00:00, depends on time zone marker.
+
+  e.g. `18:40-0930` results 28:10:00.
 */
 static int read_time_iso8601(
     _time *val,
     _str *end, _str text, _len textlen, int entire)
 {
-    _str t, tend;
+    _str t, tend, z;
+    _time tz;
 
     memset(val, 0, sizeof(*val));
+    memset(&tz, 0, sizeof(tz));
     *end = text;
 
     t = text;
     tend = text + textlen;
 
-    if (!(read_dec(&val->hour, &t, t, tend-t, 0) > 0
-            && match_chars_set(&t, t, tend-t, ":", 1, 1, 1)
-            && read_dec(&val->minute, &t, t, tend-t, 0) > 0)) {
+    if (!(read_dec(&val->hour, &t, t, tend-t, 0) > 0)) {  /* hour */
         return 0;
     }
     if (match_chars_set(&t, t, tend-t, ":", 1, 1, 1)) {
-        if (!(read_dec(&val->second, &t, t, tend-t, 0) > 0))
+        if (!(read_dec(&val->minute, &t, t, tend-t, 0) > 0))  /* minute */
             return 0;
     }
+    if (match_chars_set(&t, t, tend-t, ":", 1, 1, 1)) {
+        if (!(read_dec(&val->second, &t, t, tend-t, 0) > 0))  /* second */
+            return 0;
+    }
+    /* 00:00..24:00 */
+    if (!((val->hour == 24 && val->minute == 0 && val->second == 0)
+          || (val->hour >= 0 && val->hour < 24
+                && val->minute < 60
+                && val->second < 60)))
+        return CARGV_VAL_OVERFLOW;
+
+    z = t;
+    if (match_chars_set(&t, t, tend-t, "Z", 1, 1, 1)) {
+    }
+    else if (match_chars_set(&t, t, tend-t, "+-", 2, 1, 1)) {
+        if (!(read_dec(&tz.hour, &t, t, 2, 0) > 0))  /* hour */
+            return 0;
+        match_chars_set(&t, t, tend-t, ":", 1, 0, 1);
+        if (read_dec(&tz.minute, &t, t, tend-t, 0) < 0)  /* minute */
+            return 0;
+
+        /* -1200..+1200 */
+        if (!(((tz.hour == -12 || tz.hour == 12) && tz.minute == 0)
+                || (tz.hour > -12 && tz.hour < 12 && tz.minute < 60)))
+            return CARGV_VAL_OVERFLOW;
+    }
+    else {
+        return 0;
+    }
+
     if (!match_end(t, tend-t, entire))
         return 0;
-
-    if (!(val->hour <= 24 && val->minute <= 60 && val->second <= 60))
-        return CARGV_VAL_OVERFLOW;
+    if (*z == '-') {
+        val->minute += tz.minute;
+        val->hour += tz.hour + val->minute / 60;
+        val->minute %= 60;
+    }
+    else if (*z == '+') {
+        cargv_int_t m = val->minute - tz.minute;
+        val->minute = (m + 60) % 60;
+        val->hour -= (59 - m) / 60;
+        val->hour -= tz.hour;
+    }
 
     *end = t;
     return *end - text;
@@ -440,6 +485,7 @@ static int _p10(int e)
 [out] val: Read value.
 [out] end: Points end of matched text. If no match found, points start of text.
 [in] text, textlen: Text to match.
+[in] entire: If nonzero, text should end after matching, or fail.
 */
 static int read_degree_iso6709(
     _degree *val,
@@ -518,6 +564,7 @@ static int read_degree_iso6709(
 [out] val: Read value.
 [out] end: Points end of matched text. If no match found, points start of text.
 [in] text, textlen: Text to match.
+[in] entire: If nonzero, text should end after matching, or fail.
 */
 static int read_geocoord_iso6709(
     _geocoord *val,
@@ -561,13 +608,13 @@ static int err_val_result(
     if (result < 0) {
         if (result == CARGV_VAL_OVERFLOW) {
             fprintf(stderr,
-                "%s: `%s` overflows, which is `%s`.\n",
-                cargv->name, name, arg);
+                "%s: %s `%s` overflows, which is `%s`.\n",
+                cargv->name, type, name, arg);
         }
         else {
             fprintf(stderr,
-                "%s: Unknown error reading `%s`, which is `%s`.\n",
-                cargv->name, name, arg);
+                "%s: Unknown error reading %s `%s`, which is `%s`.\n",
+                cargv->name, type, name, arg);
         }
     }
     return result;
@@ -797,7 +844,7 @@ int cargv_time(
     while (v - vals < valc && a < cargv->argend) {
         r = read_time_iso8601(v, &e, *a, strlen(*a), 1);
         if (r < 0)
-            return r;
+            return err_val_result(cargv, name, "time", *a, r);;
         if (r == 0)
             break;
         v++;

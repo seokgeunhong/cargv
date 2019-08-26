@@ -12,7 +12,8 @@
 typedef int32_t cargv_version_num_t;
 
 struct cargv_version_t {
-    short major, minor, patch, state;
+    short major, minor, patch, release;
+    const char *state;
 };
 
 
@@ -38,11 +39,14 @@ enum cargv_err_t {
 
 struct cargv_date_t {
     cargv_int_t year;  /* -9999..9999 */
-    cargv_uint_t month, day;
+    cargv_uint_t month;  /* 1..12 */
+    cargv_uint_t day;  /* 1..31 */
 };
 
 struct cargv_time_t {
-    cargv_uint_t hour, minute, second;
+    cargv_int_t hour;  /* -12..36 */
+    cargv_uint_t minute;  /* 0..59 */
+    cargv_uint_t second;  /* 0..59 */
 };
 
 struct cargv_degree_t {
