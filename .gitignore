@@ -4,3 +4,4 @@ out/
 # intermediate files
 .sconsign.dblite
 *.pyc
+*.stackdump

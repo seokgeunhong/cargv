@@ -38,14 +38,15 @@ enum cargv_err_t {
 
 struct cargv_date_t {
     cargv_int_t year;    /* -9999..9999 */
-    cargv_uint_t month;  /* 1..12 */
-    cargv_uint_t day;    /* 1..31 */
+    cargv_uint_t month;  /* 0..12 */
+    cargv_uint_t day;    /* 0..31 */
 };
 
 struct cargv_time_t {
     cargv_int_t hour;     /* -12..36 */
     cargv_uint_t minute;  /* 0..59 */
     cargv_uint_t second;  /* 0..59 */
+    cargv_uint_t milisecond;  /* 0..999 */
 };
 
 struct cargv_degree_t {
@@ -92,6 +93,14 @@ enum cargv_err_t cargv_init(
     struct cargv_t *cargv,
     const char *name,
     int argc, const char **argv);
+
+/* Get number of arguments remained.
+
+[out] return:   Number of arguments.
+[in]  cargv:    cargv object.
+*/
+CARGV_EXPORT
+int cargv_len(const struct cargv_t *cargv);
 
 /* Shift: remove the first N arguments from the argument list.
 
@@ -192,12 +201,51 @@ int cargv_uint(
     cargv_uint_t *vals, cargv_len_t valc);
 
 
+/* ISO 8601 date-time
+
+  Years
+    [+-]YYYY          Year 0 is 1 B.C., -1 is 2 B.C. and so on.
+                      `month` and `day` are filled with 0.
+
+  Months
+    [+-]YYYY-MM       `day` is filled with 0.
+    [+-]YYYY/MM
+
+  Calendar dates
+    [+-]YYYYMMDD
+    [+-]YYYY-MM-DD
+    [+-]YYYY/MM/DD
+    --MM-DD, --MM/DD  Notation for current year. `year` is filled with 0.
+
+  Week dates: NOT supported
+    [+-]YYYY-Www-D
+    [+-]YYYYWwwD
+
+  Ordinal dates
+    [+-]YYYYDDD
+    [+-]YYYY-DDD
+    [+-]YYYY/DDD
+
+  Times
+    hh:mm:ss[.sss]    `,` may be used.
+    hhmmss[.sss]
+    hh:mm[.mmm]
+    hhmm[.mmm]
+    hh[.hhh]
+
+  Time zones
+    Z                 UTC
+    (+|-)hh:mm        local time
+    (+|-)hhmm
+    (+|-)hh
+    (omitted)         system local time
+
+  Date-times
+    <date>T<time>
+    <date> <time>
+*/
+
 /* Read date value arguments.
-
-Supported formats are:
-
-  ISO 8601 date   [+|-]YYYY-MM-DD
-                  [+|-]YYYY/MM/DD
 
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any read value are not valid dates.
@@ -213,11 +261,9 @@ int cargv_date(
 
 /* Read time value arguments.
 
-Supported formats are:
+Read time is in range from -12:00:00 to 36:00:00, depends on time zone marker.
 
-  ISO 8601 time   HH[:MM[:SS]]Z
-                  HH[:MM[:SS]]+|-HH[[:]MM]
-                  HH[:MM[:SS]]
+  e.g. `18:40-0930` results 28:10:00.
 
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any read value are not valid.
@@ -235,9 +281,9 @@ int cargv_time(
 
 Supported formats are:
 
-  ISO 6709 degree   +|-[D]DD[.DDDDDD]
-                    +|-[D]DDMM[.MMMM]
-                    +|-[D]DDMMSS[.SS]
+  ISO 6709 degree   (+|-)[D]DD[.DDDDDD]
+                    (+|-)[D]DDMM[.MMMM]
+                    (+|-)[D]DDMMSS[.SS]
 
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any valus are not valid degree.
