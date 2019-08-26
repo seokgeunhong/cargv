@@ -12,8 +12,7 @@
 typedef int32_t cargv_version_num_t;
 
 struct cargv_version_t {
-    short major, minor, patch, release;
-    const char *state;
+    short major, minor, patch, state;
 };
 
 
@@ -38,21 +37,21 @@ enum cargv_err_t {
 
 
 struct cargv_date_t {
-    cargv_int_t year;  /* -9999..9999 */
+    cargv_int_t year;    /* -9999..9999 */
     cargv_uint_t month;  /* 1..12 */
-    cargv_uint_t day;  /* 1..31 */
+    cargv_uint_t day;    /* 1..31 */
 };
 
 struct cargv_time_t {
-    cargv_int_t hour;  /* -12..36 */
+    cargv_int_t hour;     /* -12..36 */
     cargv_uint_t minute;  /* 0..59 */
     cargv_uint_t second;  /* 0..59 */
 };
 
 struct cargv_degree_t {
-    cargv_int_t deg;    /* ddd.dddddd */
-    cargv_int_t min;    /*  mm.mmmmmm */
-    cargv_int_t sec;    /*  ss.ssssss */
+    cargv_int_t deg;  /* ddd.dddddd */
+    cargv_int_t min;  /*  mm.mmmmmm */
+    cargv_int_t sec;  /*  ss.ssssss */
 };
 
 struct cargv_geocoord_t {
@@ -195,6 +194,11 @@ int cargv_uint(
 
 /* Read date value arguments.
 
+Supported formats are:
+
+  ISO 8601 date   [+|-]YYYY-MM-DD
+                  [+|-]YYYY/MM/DD
+
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any read value are not valid dates.
 [out] vals:     Array to read values into.
@@ -208,6 +212,12 @@ int cargv_date(
 
 
 /* Read time value arguments.
+
+Supported formats are:
+
+  ISO 8601 time   HH[:MM[:SS]]Z
+                  HH[:MM[:SS]]+|-HH[[:]MM]
+                  HH[:MM[:SS]]
 
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any read value are not valid.
@@ -223,6 +233,12 @@ int cargv_time(
 
 /* Read degree value arguments.
 
+Supported formats are:
+
+  ISO 6709 degree   +|-[D]DD[.DDDDDD]
+                    +|-[D]DDMM[.MMMM]
+                    +|-[D]DDMMSS[.SS]
+
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any valus are not valid degree.
 [out] vals:     Array to read values into.
@@ -236,6 +252,10 @@ int cargv_degree(
 
 
 /* Read geocoord value arguments.
+
+Supported formats are:
+
+  ISO 6709 geocoord     LATITUDELONGITUDE[/]
 
 [out] return:   Number of values successfully read.
                 CARGV_VAL_OVERFLOW if any values are not valid geocoord.

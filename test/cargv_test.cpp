@@ -32,8 +32,7 @@ TEST(Test_cargv_lib, version)
     EXPECT_EQ(ver.major, CARGV_VERSION_MAJOR);
     EXPECT_EQ(ver.minor, CARGV_VERSION_MINOR);
     EXPECT_EQ(ver.patch, CARGV_VERSION_PATCH);
-    EXPECT_STREQ(ver.state, CARGV_VERSION_STATE_STRING);
-    EXPECT_EQ(ver.release, CARGV_VERSION_RELEASE);
+    EXPECT_EQ(ver.state, CARGV_VERSION_STATE_DEV);
 
     EXPECT_STREQ(cargv_version_string(), CARGV_VERSION_STRING);
 }
@@ -263,7 +262,7 @@ TEST_F(Test_cargv, date_err)
 TEST_F(Test_cargv, date_overflow)
 {
     static const char *argv[] = {_name,
-        "0000-12-24", "2018-00-01", "2018-13-01", "2018-11-00",
+        "10000-12-24", "2018-00-01", "2018-13-01", "2018-11-00",
         "2018-02-29", "201802-01-01"
     };
     cargv_date_t v[1];

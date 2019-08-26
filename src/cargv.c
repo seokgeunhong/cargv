@@ -16,8 +16,7 @@ cargv_version_num_t cargv_version(struct cargv_version_t *ver)
         ver->major = CARGV_VERSION_MAJOR;
         ver->minor = CARGV_VERSION_MINOR;
         ver->patch = CARGV_VERSION_PATCH;
-        ver->state = CARGV_VERSION_STATE_STRING;
-        ver->release = CARGV_VERSION_RELEASE;
+        ver->state = CARGV_VERSION_STATE_DEV;
     }
     return CARGV_VERSION;
 }
@@ -334,7 +333,10 @@ static int read_udec(
 
 /* Read a modified ISO 8601 date, from the start of the text.
 
-    [+ or -]YYYY-MM-DD, or [+ or -]YYYY/MM/DD
+    [+|-]YYYY-MM-DD
+    [+|-]YYYY/MM/DD
+
+Remember that year 0 is 1 B.C., -1 is 2 B.C. and so on.
 
 [out] return: Number of characters succesfully read.
               0 if none found.
@@ -371,19 +373,20 @@ static int read_date_iso8601(
     leap = val->month == 2
             && ((!(val->year % 4) && (val->year % 100)) || !(val->year % 400));
 
-    if (!(val->year >= -9999 && val->year != 0 && val->year <= 9999
+    if (!(val->year >= -9999 && val->year <= 9999
             && val->month >= 1 && val->month <= 12
             && val->day >= 1 && val->day <= dom[val->month] + leap))
         return CARGV_VAL_OVERFLOW;
 
     *end = t;
     return *end - text;
-
 }
 
 /* Read a modified ISO 8601 time, from the start of the text.
 
-    HH:MM[:SS][Z|(+|-)HH[[:]MM]]
+    HH[:MM[:SS]]Z             UTC
+    HH[:MM[:SS]]+|-HH[[:]MM]  local time
+    HH[:MM[:SS]]              system local time
 
 [out] return: Number of characters succesfully read.
               0 if none found.
