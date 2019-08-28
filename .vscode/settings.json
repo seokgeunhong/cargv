@@ -3,4 +3,8 @@
         "**/*.pyc": true,  // Python cache
         "**/.sconsign.dblite": true,  // SCons DB
     },
+    "search.exclude": {
+        "out": true
+    },
+    "search.useGlobalIgnoreFiles": true,
 }

@@ -27,27 +27,44 @@ const char *cargv_version_string()
 }
 
 
-typedef const char             *_str;
-typedef cargv_len_t             _len;
-typedef cargv_int_t             _sint;
-typedef cargv_uint_t            _uint;
-typedef struct cargv_date_t     _date;
-typedef struct cargv_time_t     _time;
-typedef struct cargv_degree_t   _degree;
-typedef struct cargv_geocoord_t _geocoord;
+/* Short internal names for exported types and constants */
+typedef const char               *_str;
+typedef cargv_len_t               _len;
+typedef cargv_int_t               _sint;
+typedef cargv_uint_t              _uint;
+typedef struct cargv_date_t       _ymd;
+typedef struct _hms_t {
+    _uint hour;    /* 0..24 */
+    _uint minute;  /* 0..59 */
+    _uint second;  /* 0..59 */
+    _uint milisecond;  /* 0..999 */
+} _hms;
+typedef struct cargv_timezone_t   _tz;
+typedef struct cargv_datetime_t   _datetime;
+typedef struct cargv_degree_t     _degree;
+typedef struct cargv_geocoord_t   _geocoord;
 
 #define _SINT_MIN   CARGV_SINT_MIN
 #define _SINT_MAX   CARGV_SINT_MAX
 #define _UINT_MAX   CARGV_UINT_MAX
 
 
-static _str opt_short_prefix = "-";
-static _len opt_short_prefix_len = 1;
-static _str opt_long_prefix  = "--";
-static _len opt_long_prefix_len = 2;
-static _str opt_wildcard = "*";
-static _len opt_wildcard_len = 1;
+static const _str opt_short_prefix = "-";
+static const _len opt_short_prefix_len = 1;
+static const _str opt_long_prefix  = "--";
+static const _len opt_long_prefix_len = 2;
+static const _str opt_wildcard = "*";
+static const _len opt_wildcard_len = 1;
 
+
+/* power of 10 */
+static int __p10(int e)
+{
+    int x = 1;
+    while (e-- > 0)
+        x *= 10;
+    return x;
+}
 
 /* See if text is empty, only when entire is nonzero.
 
@@ -72,13 +89,12 @@ static int __match_str(
     _str text, _str textend,
     _str pattern, _len patternlen)
 {
-    if ((textend-text) >= patternlen
+    if ((textend - text) >= patternlen
         && memcmp(text, pattern, patternlen) == 0) {
         *next = text + patternlen;
         return patternlen;
     }
-    else
-        return 0;
+    return 0;
 }
 
 /* See how many characters from the start of a text are not matched to a
@@ -212,63 +228,91 @@ static int __match_chars_range(
         next, text, textend, pattern, patternlen,minc, maxc);
 }
 
-/* Read an unsigned decimal integer, without any sign.
+/* Read a number sign, `+` or `-`.
+
+[out] return: Number of characters succesfully read.
+              0 if none found.
+[out] val: -1 for `-`, 1 otherwise.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_sign(_sint *val, _str *next, _str text, _str textend)
+{
+    _str t = text;
+
+    __match_chars_set(&t, t, textend, "+-", 2, 0, 1);
+    *val = (*text == '-') ? -1 : 1;
+    return (int)((*next = t) - text);
+}
+
+/* Read a decimal integer, without any sign. [0-9]+
 
 [out] return: Number of characters succesfully read.
               0 if pattern not matched to a decimal number.
               CARGV_VAL_OVERFLOW if value exceeds CARGV_UINT_MAX.
-[out] val: Read value. Undefined on failure.
+[out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
+[in] text, textend: Text to match.
 */
-static int __read_dec(
-    _uint *val,
-    _str *next, _str text, _str textend)
+static int __read_dec(_uint *val, _str *next, _str text, _str textend)
 {
-    _str t, u;
+    int r;
+    _str t = text, s;
+    _uint u;
 
-    *val = 0;
-
-    t = text;
-    if (!(__match_chars_range(&t, t, textend, "09", 2, 0, 100) > 0))
+    if (!((r = __match_chars_range(&t, t, textend, "09", 2, 0, 100)) != 0))
         return 0;
 
-    for (u = text; u < t; u++) {
-        if (*val < _UINT_MAX / 10
-                || (*val == _UINT_MAX / 10 && *u - '0' <= _UINT_MAX % 10))
-            *val = *val * 10 + (*u - '0');
+    *next = t;
+    if (r < 0)
+        return r;
+
+    u = 0;
+    for (s = text; s < t; s++) {
+        if (u < _UINT_MAX / 10
+            || (u == _UINT_MAX / 10 && *s - '0' <= _UINT_MAX % 10))
+            u = u * 10 + (*s - '0');
         else
             return CARGV_VAL_OVERFLOW;
     }
-    return (int)((*next = t) - text);
+    *val = u;
+    return (int)(*next - text);
 }
 
-/* Read a signed decimal integer, from the start of the text.
+/* Read a signed decimal integer.
 
 [out] return: Number of characters succesfully read.
               0 if none found.
               CARGV_VAL_OVERFLOW if not in [CARGV_SINT_MIN,CARGV_SINT_MAX].
-[out] val: Read value. Undefined on failure.
+[out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
+[in] text, textend: Text to match.
 */
-static int read_sdec(_sint *val, _str *next, _str text, _len textlen, int entire)
+static int __read_sint_dec(_sint *val, _str *next, _str text, _str textend)
 {
-    _str t, tend;
-    _uint u;
     int r;
+    _str t;
+    _sint sign;
+    _uint u;
 
-    t = text;
-    tend = text + textlen;
-
-    __match_chars_set(&t, t, tend, "+-", 2, 0, 1);
-    if (!((r = __read_dec(&u, &t, t, tend)) > 0))
-        return r;
-    if (!__match_end(t, tend, entire))
+    /* [+-]<0-9>{..} */
+    if (__read_sign(&sign, &t, (t = text), textend) >= 0
+        && (r = __read_dec(&u, &t, t, textend)) != 0) {
+    }
+    else
         return 0;
 
-    if (*text == '-') {
+    *next = t;
+    if (r < 0)
+        return r;
+
+    if (sign > 0) {
+        if (u <= (_uint)_SINT_MAX)
+            *val = (_sint)u;
+        else
+            return CARGV_VAL_OVERFLOW;
+    }
+    else {
         if (u < (_uint)_SINT_MAX+1)
             *val = -(_sint)u;
         else if (u == (_uint)_SINT_MAX+1)
@@ -276,508 +320,484 @@ static int read_sdec(_sint *val, _str *next, _str text, _len textlen, int entire
         else
             return CARGV_VAL_OVERFLOW;
     }
-    else {
-        if (u <= (_uint)_SINT_MAX)
-            *val = (_sint)u;
-        else
-            return CARGV_VAL_OVERFLOW;
-    }
-
-    return (int)((*next = t) - text);
+    return (int)(*next - text);
 }
 
-/* Read an unsigned decimal integer, from the start of the text.
+/* Read an unsigned decimal integer.
 
 [out] return: Number of characters succesfully read.
               0 if none found.
               CARGV_VAL_OVERFLOW if not in [0,CARGV_UINT_MAX].
-[out] val: Read value. Undefined on failure.
+[out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
+[in] text, textend: Text to match.
 */
-static int read_udec(
-    _uint *val,
-    _str *next, _str text, _len textlen, int entire)
+static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
 {
-    _str t, tend;
     int r;
+    _str t;
+    _sint sign;
+    _uint u;
 
-    t = text;
-    tend = text + textlen;
-
-    __match_chars_set(&t, t, tend, "+-", 2, 0, 1);
-    if (!((r = __read_dec(val, &t, t, tend)) > 0))
-        return r;
-    if (!__match_end(t, tend, entire))
+    /* [+]<0-9>{..} */
+    if (__read_sign(&sign, &t, (t = text), textend) >= 0
+        && (r = __read_dec(&u, &t, t, textend)) != 0) {
+    }
+    else
         return 0;
 
-    if (*text == '-')
+    *next = t;
+    if (sign < 0)
         return CARGV_VAL_OVERFLOW;
+    if (r < 0)
+        return r;
 
-    return (int)((*next = t) - text);
+    *val = u;
+    return (int)(*next - text);
 }
 
 
-/* DD */
-static int __read_iso8601_DD(
-    _date *val,
-    _str *next, _str text, _str textend)
+static const struct cargv_date_t _TODAY
+    = {CARGV_THIS_YEAR, CARGV_THIS_MONTH, CARGV_THIS_DAY};
+const struct cargv_date_t *CARGV_TODAY = &_TODAY;
+
+static const struct _hms_t _HMS_NOW = {
+    CARGV_THIS_HOUR, CARGV_THIS_MINUTE, CARGV_THIS_SECOND, CARGV_THIS_MILISECOND,
+};
+
+static const struct cargv_timezone_t _TZ_LOCAL
+    = {CARGV_TZ_LOCAL_HOUR, CARGV_TZ_LOCAL_MINUTE};
+const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_LOCAL;
+
+static const struct cargv_time_t _NOW = {
+    CARGV_THIS_HOUR, CARGV_THIS_MINUTE, CARGV_THIS_SECOND, CARGV_THIS_MILISECOND,
+    {CARGV_TZ_LOCAL_HOUR, CARGV_TZ_LOCAL_MINUTE}
+};
+const struct cargv_time_t *CARGV_NOW = &_NOW;
+
+static const struct cargv_datetime_t _TODAY_NOW = {
+    CARGV_THIS_YEAR, CARGV_THIS_MONTH, CARGV_THIS_DAY,
+    CARGV_THIS_HOUR, CARGV_THIS_MINUTE, CARGV_THIS_SECOND, CARGV_THIS_MILISECOND,
+    {CARGV_TZ_LOCAL_HOUR, CARGV_TZ_LOCAL_MINUTE}
+};
+const struct cargv_datetime_t *CARGV_TODAY_NOW = &_TODAY_NOW;
+
+static const struct cargv_timezone_t _UTC         = {+0,0};
+static const struct cargv_timezone_t _TZ_SEOUL    = {+9,0};
+const struct cargv_timezone_t *CARGV_UTC = &_UTC;
+const struct cargv_timezone_t *CARGV_TZ_SEOUL = &_TZ_SEOUL;
+
+/* return 1 if the month is leap month, otherwise 0. */
+static int __leap(_sint year, _uint month)
 {
-    _str t = text;
-
-    if (__read_dec(&val->day, &t, t, textend) > 0)
-        return (int)((*next = t) - text);
-    else
-        return 0;
+    return month == 2 && ((!(year % 4) && (year % 100)) || !(year % 400));
 }
 
-/* MM */
-static int __read_iso8601_MM(
-    _date *val,
-    _str *next, _str text, _str textend)
+static int __days_of_month_this_year(_uint month)
 {
-    _str t = text;
-
-    if (__read_dec(&val->month, &t, t, textend) > 0)
-        return (int)((*next = t) - text);
-    else
-        return 0;
+    static const int days_of_month[] = {
+        0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+    };
+    return days_of_month[month];
 }
-
-/* MMDD */
-static int __read_iso8601_MMDD(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_dec(&val->month, &t, t, textend) == 4) {
-        val->day = val->month % 100;
-        val->month /= 100;
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* MM-DD or MM/DD */
-static int __read_iso8601_MM_DD(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_iso8601_MM(val, &t, t, textend) > 0
-            && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) > 0
-            && __read_iso8601_DD(val, &t, t, textend) > 0) {
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* [+-] */
-static int __read_iso8601_sign(
-    _sint *sign,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__match_char_set(*t, "+", 1)) {
-        *sign = 1;
-        return (int)((*next = ++t) - text);
-    }
-    else if (__match_char_set(*t, "-", 1)) {
-        *sign = -1;
-        return (int)((*next = ++t) - text);
-    }
-    *sign = 1;
-    return 0;
-}
-
-/* [+-]YYYY */
-static int __read_iso8601_YYYY(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _sint sign;
-
-    __read_iso8601_sign(&sign, &t, t, textend);
-    if (__read_dec(&val->year, &t, t, textend) > 0) {
-        val->year *= sign;
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* [+-]YYYYMMDD */
-static int __read_iso8601_YYYYMMDD(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _sint sign;
-    _uint n;
-
-    __read_iso8601_sign(&sign, &t, t, textend);
-    if (__read_dec(&n, &t, t, textend) == 8) {
-        val->year = n / 10000 * sign;
-        val->month = (n % 10000) / 100;
-        val->day = n % 100;
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* [+-]YYYY-MM-DD or [+-]YYYY/MM/DD */
-static int __read_iso8601_YYYY_MM_DD(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_iso8601_YYYY(val, &t, t, textend) > 0
-            && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) > 0
-            && __read_iso8601_MM_DD(val, &t, t, textend) > 0) {
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* [+-]YYYY-MM or [+-]YYYY/MM */
-static int __read_iso8601_YYYY_MM(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_iso8601_YYYY(val, &t, t, textend) > 0
-            && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) > 0
-            && __read_iso8601_MM(val, &t, t, textend) > 0) {
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* --MM-DD or --MM/DD */
-static int __read_iso8601___MM_DD(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__match_str(&t, t, textend, "--", 2) == 2
-            && __read_iso8601_MM_DD(val, &t, t, textend) > 0)
-        return (int)((*next = t) - text);
-    else
-        return 0;
-}
-
-/* --MMDD */
-static int __read_iso8601___MMDD(
-    _date *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__match_str(&t, t, textend, "--", 2) == 2
-            && __read_iso8601_MMDD(val, &t, t, textend) > 0)
-        return (int)((*next = t) - text);
-    else
-        return 0;
-}
-
-/* hhmmss[.sss] */
-static int __read_iso8601_hhmmss(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _uint n;
-
-    if (__read_dec(&n, &t, t, textend) == 6) {
-        val->hour = n / 10000;
-        val->minute = (n % 10000) / 100;
-        val->second = n % 100;
-        // if (__match_char_set(*next, ".,", 2) > 0
-        //     && __read_dec(&n, &t, t, textend) > 0) {
-        //     val->milisecond = ...;
-        // }
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* hhmm[.mmm] */
-static int __read_iso8601_hhmm(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _uint n;
-
-    if (__read_dec(&n, &t, t, textend) == 4) {
-        val->hour = n / 100;
-        val->minute = n % 100;
-        // if (__match_char_set(*next, ".,", 2) > 0
-        //     && __read_dec(&n, &t, t, textend) > 0) {
-        //     val->second = ...;
-        // }
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* hh:mm:ss[.sss] */
-static int __read_iso8601_hh_mm_ss(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_dec(&val->hour, &t, t, textend) > 0
-        && __match_chars_set(&t, t, textend, ":", 1, 1, 1) > 0
-        && __read_dec(&val->minute, &t, t, textend) > 0
-        && __match_chars_set(&t, t, textend, ":", 1, 1, 1) > 0
-        && __read_dec(&val->second, &t, t, textend) > 0) {
-        // if (__match_char_set(*next, ".,", 2) > 0
-        //     && __read_dec(&n, &t, t, textend) > 0) {
-        //     val->milisecond = ...;
-        // }
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* hh:mm[.mmm] */
-static int __read_iso8601_hh_mm(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_dec(&val->hour, &t, t, textend) > 0
-        && __match_chars_set(&t, t, textend, ":", 1, 1, 1) > 0
-        && __read_dec(&val->minute, &t, t, textend) > 0) {
-        // if (__match_char_set(*next, ".,", 2) > 0
-        //     && __read_dec(&n, &t, t, textend) > 0) {
-        //     val->milisecond = ...;
-        // }
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* hh[.hhh] */
-static int __read_iso8601_hh(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__read_dec(&val->hour, &t, t, textend) > 0) {
-        // if (__match_char_set(*next, ".,", 2) > 0
-        //     && __read_dec(&n, &t, t, textend) > 0) {
-        //     val->milisecond = ...;
-        // }
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* Z */
-static int __read_iso8601_Z(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-
-    if (__match_char_set(*t, "Z", 1) > 0)
-        return (int)((*next = ++t) - text);
-    else
-        return 0;
-}
-
-/* (+|-)hhmm */
-static int __read_iso8601_Zhhmm(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _sint sign;
-    _uint n;
-
-    if (__read_iso8601_sign(&sign, &t, t, textend) > 0
-        && __read_dec(&n, &t, t, textend) == 4) {
-        val->hour = n / 100 * sign;
-        val->minute = n % 100;
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* (+|-)hh:mm */
-static int __read_iso8601_Zhh_mm(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _sint sign;
-
-    if (__read_iso8601_sign(&sign, &t, t, textend) > 0
-        && __read_dec(&val->hour, &t, t, textend) > 0
-        && __match_chars_set(&t, t, textend, ":", 1, 1, 1) > 0
-        && __read_dec(&val->minute, &t, t, textend) > 0) {
-        val->hour *= sign;
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-/* (+|-)hh */
-static int __read_iso8601_Zhh(
-    _time *val,
-    _str *next, _str text, _str textend)
-{
-    _str t = text;
-    _sint sign;
-
-    if (__read_iso8601_sign(&sign, &t, t, textend) > 0
-        && __read_dec(&val->hour, &t, t, textend) > 0) {
-        val->hour *= sign;
-        return (int)((*next = t) - text);
-    }
-    return 0;
-}
-
-
-/* Read a modified ISO 8601 date, from the start of the text.
-
-[out] return: Number of characters succesfully read.
-              0 if none found.
-              <0 if error; See cargv_err_t.
-[out] val: Read value. Undefined on failure.
-[out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
-*/
-static int read_date_iso8601(
-    _date *val,
-    _str *next, _str text, _len len, int entire)
+static int __days_of_month(_sint year, _uint month)
 {
     static const int days_of_month[] = {
         0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
-    static const int date_of_month[] = {
-        0, 1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335,
-    };
-    _str t = text, textend = text + len;
-    int leap;
-
-    memset(val, 0, sizeof(*val));
-
-    if (!(__read_iso8601___MMDD(val, &t, t, textend) > 0
-        || __read_iso8601___MM_DD(val, &t, t, textend) > 0
-        || __read_iso8601_YYYYMMDD(val, &t, t, textend) > 0
-        //|| __read_iso8601_YYYYDDD(val, &t, t, textend) > 0
-        //|| __read_iso8601_YYYY_DDD(val, &t, t, textend) > 0
-        || __read_iso8601_YYYY_MM_DD(val, &t, t, textend) > 0
-        || __read_iso8601_YYYY_MM(val, &t, t, textend) > 0
-        || __read_iso8601_YYYY(val, &t, t, textend) > 0))
-        return 0;
-
-    if (!__match_end(t, textend, entire))
-        return 0;
-
-    leap = val->month == 2
-            && ((!(val->year % 4) && (val->year % 100)) || !(val->year % 400));
-    if (!(val->year >= -9999 && val->year <= 9999
-            && val->month >= 0 && val->month <= 12
-            && val->day >= 0 && val->day <= days_of_month[val->month] + leap))
-        return CARGV_VAL_OVERFLOW;
-
-    return (int)((*next = t) - text);
+    return days_of_month[month] + __leap(year, month);
 }
 
-/* Read a modified ISO 8601 time as UTC, from the start of the text.
+/* Read a modified ISO 8601 year, month, and day, no omission.
 
 [out] return: Number of characters succesfully read.
-              0 if none found.
-              <0 if error; See cargv_err_t.
-[out] val: Read value. Undefined on failure.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
+[in] text, textend: Text to match.
 */
-static int read_time_iso8601(
-    _time *val,
-    _str *next, _str text, _len len, int entire)
+static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
 {
-    _str t = text, textend = text + len;
-    _time tz;
+    int r;
+    _str t;
+    _sint sign, y;
+    _uint m, d, n;
 
-    memset(val, 0, sizeof(*val));
-    memset(&tz, 0, sizeof(tz));
-
-    if (!(__read_iso8601_hhmmss(val, &t, t, textend) > 0
-        || __read_iso8601_hhmm(val, &t, t, textend) > 0
-        || __read_iso8601_hh_mm_ss(val, &t, t, textend) > 0
-        || __read_iso8601_hh_mm(val, &t, t, textend) > 0
-        || __read_iso8601_hh(val, &t, t, textend) > 0))
+    /* [+-]YYYYMMDD */
+    if (__read_sign(&sign, &t, (t = text), textend) >= 0
+        && __read_dec(&n, &t, t, textend) == 8) {
+        y = (_sint)n / 10000 * sign;
+        m = (n % 10000) / 100;
+        d = n % 100;
+    }
+    /* [+-]Y{1-4}<-/>M{1-2}<-/>D{1-2} */
+    else if (__read_sign(&sign, &t, (t = text), textend) >= 0
+             && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4
+             && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
+             && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2
+             && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
+             && (r = __read_dec(&d, &t, t, textend)) > 0 && r <= 2) {
+        y = (_sint)n * sign;;
+    }
+    else
         return 0;
-    /* 00:00..24:00 */
-    if (!((val->hour == 24 && val->minute == 0 && val->second == 0
-                && val->milisecond == 0) ||
-          (val->hour >= 0 && val->hour < 24 && val->minute < 60
-                && val->second < 60 && val->milisecond < 1000)))
+
+    *next = t;
+
+    /* -9999-1-1..+9999-12-31 */
+    if (!(y >= -9999 && y <= 9999
+          && m > 0 && m <= 12
+          && d > 0 && d <= __days_of_month(y, m)))
         return CARGV_VAL_OVERFLOW;
 
-    if (!(__read_iso8601_Z(&tz, &t, t, textend) > 0
-        || __read_iso8601_Zhhmm(&tz, &t, t, textend) > 0
-        || __read_iso8601_Zhh_mm(&tz, &t, t, textend) > 0
-        || __read_iso8601_Zhh(&tz, &t, t, textend) > 0)) {
-        return 0;
+    val->year = y;
+    val->month = m;
+    val->day = d;
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 year and month only.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _sint sign, y;
+    _uint m, n;
+
+    /* [+-]Y{1-4}<-/>M{1-2} */
+    if (__read_sign(&sign, &t, (t = text), textend) >= 0
+        && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4
+        && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
+        && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2) {
+        y = (_sint)n * sign;
     }
-    /* -1200..+1200 */
-    if (!(((tz.hour == -12 || tz.hour == 12) && tz.minute == 0) ||
-            (tz.hour > -12 && tz.hour < 12 && tz.minute < 60)))
+    else
+        return 0;
+
+    *next = t;
+
+    /* -9999-01..+9999-12 */
+    if (!(y >= -9999 && y <= 9999 && m > 0 && m <= 12))
         return CARGV_VAL_OVERFLOW;
 
-    if (!__match_end(t, textend, entire))
+    val->year = y;
+    val->month = m;
+    val->day = CARGV_THIS_DAY;
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 year only.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _sint sign, y;
+    _uint n;
+
+    /* [+-]Y{1-4} */
+    if (__read_sign(&sign, &t, (t = text), textend) >= 0
+        && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4) {
+        y = (_sint)n * sign;
+    }
+    else
+        return 0;
+        
+    *next = t;
+
+    /* -9999..+9999 */
+    if (!(y >= -9999 && y <= 9999))
+        return CARGV_VAL_OVERFLOW;
+
+    val->year = y;
+    val->month = CARGV_THIS_MONTH;
+    val->day = CARGV_THIS_DAY;
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 month and day only.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_MD(_ymd *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _uint m, d, n;
+
+    /* --MMDD */
+    if (__match_str(&t, (t = text), textend, "--", 2) == 2
+        && __read_dec(&n, &t, t, textend) == 4) {
+        d = n % 100;
+        m = n / 100;
+    }
+    /* --M{1-2}<-/>D{1-2} */
+    else if (__match_str(&t, (t = text), textend, "--", 2) == 2
+             && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2
+             && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
+             && (r = __read_dec(&d, &t, t, textend)) > 0 && r <= 2) {
+    }
+    else
         return 0;
 
-    if (tz.hour < 0) {
-        cargv_int_t m = val->minute + tz.minute;
-        val->hour += -tz.hour + m / 60;
-        val->minute = m % 60;
-    }
-    else {
-        cargv_int_t m = val->minute - tz.minute;
-        val->minute = (m + 60) % 60;
-        val->hour -= (59 - m) / 60;
-        val->hour -= tz.hour;
-    }
+    *next = t;
 
+    /* 1-1..12-31 */
+    if (!(m > 0 && m <= 12 && d > 0 && d <= __days_of_month_this_year(m)))
+        return CARGV_VAL_OVERFLOW;
+
+    val->year = CARGV_THIS_YEAR;
+    val->month = m;
+    val->day = d;
+    return (int)(*next - text);
+}
+
+/* `Z` */
+static int __read_iso8601_Z(_tz *val, _str *next, _str text, _str textend)
+{
+    _str t = text;
+
+    if (!(__match_chars_set(&t, t, textend, "Z", 1, 1, 1) > 0))
+        return 0;
+
+    memcpy(val, &_UTC, sizeof(*val));
     return (int)((*next = t) - text);
 }
 
-/* power of 10 */
-static int _p10(int e)
+static int __read_iso8601_Zhm(_tz *val, _str *next, _str text, _str textend)
 {
-    int x = 1;
-    while (e-- > 0)
-        x *= 10;
-    return x;
+    int r;
+    _str t;
+    _sint sign;
+    _uint h, m, n;
+
+    /* <+->hhmm */
+    if (__read_sign(&sign, &t, (t = text), textend) == 1
+        && __read_dec(&n, &t, t, textend) == 4) {
+        h = n / 100;
+        m = n % 100;
+    }
+    /* <+->h{1..2}:m{1..2} */
+    else if (__read_sign(&sign, &t, (t = text), textend) == 1
+             && (r = __read_dec(&h, &t, t, textend)) > 0 && r <= 2
+             && __match_chars_set(&t, t, textend, ":", 2, 1, 1) == 1
+             && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2) {
+    }
+    else
+        return 0;
+
+    *next = t;
+
+    /* -12:00..+12:00 */
+    if (!((h == 12 && m == 0) || (h < 12 && m < 60)))
+        return CARGV_VAL_OVERFLOW;
+
+    val->hour = sign * (_sint)h;
+    val->minute = sign * (_sint)m;
+    return (int)(*next - text);
 }
 
-/* Read a ISO 6709 degree, from the start of the text.
+static int __read_iso8601_Zh(_tz *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _sint sign;
+    _uint h;
+
+    /* <+->h{1..2} */
+    if (__read_sign(&sign, &t, (t = text), textend) == 1
+        && (r = __read_dec(&h, &t, t, textend)) > 0 && r <= 2) {
+    }
+    else
+        return 0;
+
+    *next = t;
+
+    /* -12..+12 */
+    if (!(h <= 12))
+        return CARGV_VAL_OVERFLOW;
+
+    val->hour = sign * (_sint)h;
+    val->minute = 0;
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 timezone.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_tz(_tz *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _tz v;
+
+    if ((r = __read_iso8601_Z(&v, &t, (t = text), textend)) == 0
+        && (r = __read_iso8601_Zhm(&v, &t, (t = text), textend)) == 0
+        && (r = __read_iso8601_Zh(&v, &t, (t = text), textend)) == 0)
+        return 0;
+
+    *next = t;
+    if (r < 0)
+        return r;
+
+    memcpy(val, &v, sizeof(*val));
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 hour, minute, and second, no omission.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_hms(_hms *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _uint h, m, s, n;
+
+    /* hhmmss[.sss] */
+    if (__read_dec(&n, &t, (t = text), textend) == 6) {
+        h = n / 10000;
+        m = (n % 10000) / 100;
+        s = n % 100;
+    }
+    /* h{1-2}:m{1-2}:s{1-2}[.sss] */
+    else if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2
+             && __match_chars_set(&t, t, textend, ":", 1, 1, 1) == 1
+             && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2
+             && __match_chars_set(&t, t, textend, ":", 1, 1, 1) == 1
+             && (r = __read_dec(&s, &t, t, textend)) > 0 && r <= 2) {
+    }
+    else
+        return 0;
+
+    *next = t;
+
+    /* 00:00:00..24:00:00 */
+    if (!((h == 24 && m == 0 && s == 0) || (h < 24 && m < 60 && s < 60)))
+        return CARGV_VAL_OVERFLOW;
+
+    val->hour = h;
+    val->minute = m;
+    val->second = s;
+    val->milisecond = 0;
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 hour and minute.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_hm(_hms *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _uint h, m, n;
+
+    /* hhmm[.mmm] */
+    if (__read_dec(&n, &t, (t = text), textend) == 4) {
+        h = n / 100;
+        m = n % 100;
+    }
+    /* h{1-2}:m{1-2}[.mmm] */
+    else if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2
+             && __match_chars_set(&t, t, textend, ":", 1, 1, 1) == 1
+             && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2) {
+    }
+    else
+        return 0;
+
+    *next = t;
+
+    /* 00:00..24:00 */
+    if (!((h == 24 && m == 0) || (h < 24 && m < 60)))
+        return CARGV_VAL_OVERFLOW;
+
+    val->hour = h;
+    val->minute = m;
+    val->second = 0;
+    val->milisecond = 0;
+    return (int)(*next - text);
+}
+
+/* Read a modified ISO 8601 hour only.
+
+[out] return: Number of characters succesfully read.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
+[out] val: Read value. Untouched on failure.
+[out] next: Points end of matched text. Untouched if no match found.
+[in] text, textend: Text to match.
+*/
+static int __read_iso8601_h(_hms *val, _str *next, _str text, _str textend)
+{
+    int r;
+    _str t;
+    _uint h, n;
+
+    /* h{1-2}[.hhh] */
+    if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2) {
+    }
+    else
+        return 0;
+
+    *next = t;
+
+    /* 00..24 */
+    if (!(h <= 24))
+        return CARGV_VAL_OVERFLOW;
+
+    val->hour = h;
+    val->minute = 0;
+    val->second = 0;
+    val->milisecond = 0;
+    return (int)(*next - text);
+}
+
+/* Read a ISO 6709 degree.
 
     <+ or ->[D]DD[.DDDDDD], <+ or ->[D]DDMM[.MMMM], or <+ or ->[D]DDMMSS[.SS]
 
 [out] return: Number of characters succesfully read.
               0 if none found.
               <0 if error; See cargv_err_t.
-[out] val: Read value. Undefined on failure.
+[out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
 [in] text, textlen: Text to match.
 [in] entire: If nonzero, text should end after matching, or fail.
@@ -813,20 +833,20 @@ static int read_degree_iso6709(
 
     /* [D]DD[.DDDDDD] */
     if (alen < 4) {
-        val->deg = a * 1000000 + b / _p10(blen-6) * _p10(6-blen);
+        val->deg = a * 1000000 + b / __p10(blen-6) * __p10(6-blen);
         val->min = val->sec = 0;
     }
     /* [D]DDMM[.MMMM] */
     else if (alen < 6) {
         val->deg = a / 100 * 1000000;
-        val->min = a % 100 * 1000000 + b / _p10(blen-4) * _p10(4-blen) * 100;
+        val->min = a % 100 * 1000000 + b / __p10(blen-4) * __p10(4-blen) * 100;
         val->sec = 0;
     }
     /* [D]DDMMSS[.SS] */
     else if (alen < 8) {
         val->deg = a / 10000 * 1000000;
         val->min = a % 10000 / 100 * 1000000;
-        val->sec = a % 100 * 1000000 + b / _p10(blen-2) * _p10(2-blen) * 10000;
+        val->sec = a % 100 * 1000000 + b / __p10(blen-2) * __p10(2-blen) * 10000;
     }
     else
         return CARGV_VAL_OVERFLOW;
@@ -845,14 +865,14 @@ static int read_degree_iso6709(
     return (int)((*next = t) - text);
 }
 
-/* Read a ISO 6709 geocoord, from the start of the text.
+/* Read a ISO 6709 geocoord.
 
     LATITUDELONGITUDE[/]
 
 [out] return: Number of characters succesfully read.
               0 if none found.
               <0 if error; See cargv_err_t.
-[out] val: Read value. Undefined on failure.
+[out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
 [in] text, textlen: Text to match.
 [in] entire: If nonzero, text should end after matching, or fail.
@@ -874,6 +894,8 @@ static int read_geocoord_iso6709(
     if (!__match_end(t, tend, entire))
         return 0;
 
+    *next = t;
+
     if (a < 0 || b < 0
             || !(val->latitude.deg >= -90000000
             && val->latitude.deg <= 90000000
@@ -881,7 +903,7 @@ static int read_geocoord_iso6709(
             && val->longitude.deg <= 180000000))
         return CARGV_VAL_OVERFLOW;
 
-    return (int)((*next = t) - text);
+    return (int)(*next - text);
 }
 
 static int err_val_result(
@@ -1050,20 +1072,22 @@ int cargv_int(
     cargv_int_t *vals, cargv_len_t valc)
 {
     int r;
-    _sint *v;
-    _str *a, e;
-
-    memset(vals, 0, valc * sizeof(*vals));
+    _sint *v, n;
+    _str *a, t, e;
 
     v = vals;
     a = cargv->args;
     while (v - vals < valc && a < cargv->argend) {
-        r = read_sdec(v, &e, *a, strlen(*a), 1);
+        t = *a;
+        e = t + strlen(t);
+        if ((r = __read_sint_dec(&n, &t, t, e)) == 0)
+            break;
+        if (!__match_end(t, e, 1))
+            break;
         if (r < 0)
             return err_val_result(cargv, name, "integer", *a, r);
-        if (r == 0)
-            break;
-        v++;
+
+        *v++ = n;
         a++;
     }
     return (int)(v-vals);
@@ -1075,20 +1099,22 @@ int cargv_uint(
     cargv_uint_t *vals, cargv_len_t valc)
 {
     int r;
-    _uint *v;
-    _str *a, e;
-
-    memset(vals, 0, valc * sizeof(*vals));
+    _uint *v, n;
+    _str *a, t, e;
 
     v = vals;
     a = cargv->args;
     while (v - vals < valc && a < cargv->argend) {
-        r = read_udec(v, &e, *a, strlen(*a), 1);
+        t = *a;
+        e = t + strlen(t);
+        if ((r = __read_uint_dec(&n, &t, t, e)) == 0)
+            break;
+        if (!__match_end(t, e, 1))
+            break;
         if (r < 0)
             return err_val_result(cargv, name, "unsigned integer", *a, r);
-        if (r == 0)
-            break;
-        v++;
+
+        *v++ = n;
         a++;
     }
     return (int)(v-vals);
@@ -1100,18 +1126,25 @@ int cargv_date(
     struct cargv_date_t *vals, cargv_len_t valc)
 {
     int r;
-    _date *v;
-    _str *a, e;
+    _ymd *v, d;
+    _str *a, t, e;
 
     v = vals;
     a = cargv->args;
     while (v - vals < valc && a < cargv->argend) {
-        r = read_date_iso8601(v, &e, *a, strlen(*a), 1);
+        t = *a;
+        e = t + strlen(t);
+        if ((r = __read_iso8601_YMD(&d, &t, t, e)) == 0
+            && (r = __read_iso8601_YM(&d, &t, t, e)) == 0
+            && (r = __read_iso8601_Y(&d, &t, t, e)) == 0
+            && (r = __read_iso8601_MD(&d, &t, t, e)) == 0)
+            break;
+        if (!__match_end(t, e, 1))
+            break;
         if (r < 0)
             return err_val_result(cargv, name, "date", *a, r);
-        if (r == 0)
-            break;
-        v++;
+
+        memcpy(v++, &d, sizeof(*v));
         a++;
     }
     return (int)(v-vals);
@@ -1122,23 +1155,206 @@ int cargv_time(
     const char *name,
     struct cargv_time_t *vals, cargv_len_t valc)
 {
-    int r;
-    _time *v;
-    _str *a, e;
+    int rh, rz;
+    struct cargv_time_t *v;
+    _hms h;
+    _tz z;
+    _str *a, t, e;
 
-    v = vals;
-    a = cargv->args;
-    while (v - vals < valc && a < cargv->argend) {
-        r = read_time_iso8601(v, &e, *a, strlen(*a), 1);
-        if (r < 0)
-            return err_val_result(cargv, name, "time", *a, r);;
-        if (r == 0)
+    for (a = cargv->args, v = vals; v - vals < valc && a < cargv->argend;) {
+        t = *a;
+        e = t + strlen(t);
+
+        /* <hms>[z] */
+        if ((rh = __read_iso8601_hms(&h, &t, t, e)) == 0
+            && (rh = __read_iso8601_hm(&h, &t, t, e)) == 0
+            && (rh = __read_iso8601_h(&h, &t, t, e)) == 0)
             break;
-        v++;
-        a++;
+        if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
+            memcpy(&z, &_TZ_LOCAL, sizeof(z));
+        if (!__match_end(t, e, 1))
+            break;
+        if (rh < 0)
+            return err_val_result(cargv, name, "time", *a, rh);
+        if (rz < 0)
+            return err_val_result(cargv, name, "time", *a, rz);
+
+        v->hour = h.hour;
+        v->minute = h.minute;
+        v->second = h.second;
+        v->milisecond = h.milisecond;
+        memcpy(&v->tz, &z, sizeof(v->tz));
+        ++v;
+        ++a;
     }
     return (int)(v-vals);
 }
+
+int cargv_timezone(
+    struct cargv_t *cargv,
+    const char *name,
+    struct cargv_timezone_t *vals, cargv_len_t valc)
+{
+    int r;
+    _tz *v, z;
+    _str *a, t, e;
+
+    for (a = cargv->args, v = vals; v - vals < valc && a < cargv->argend;) {
+        t = *a;
+        e = t + strlen(t);
+        if ((r = __read_iso8601_tz(&z, &t, t, e)) == 0)
+            break;
+        if (!__match_end(t, e, 1))
+            break;
+        if (r < 0)
+            return err_val_result(cargv, name, "timezone", *a, r);
+
+        memcpy(v++, &z, sizeof(*v));
+        ++a;
+    }
+    return (int)(v-vals);
+}
+
+int cargv_datetime(
+    struct cargv_t *cargv,
+    const char *name,
+    struct cargv_datetime_t *vals, cargv_len_t valc)
+{
+    int r;
+    _datetime *v;
+    _ymd d;
+    _hms h;
+    _tz z;
+    _str *a, t, e;
+    int rd = 0, rh = 0, rz = 0;
+
+    for (a = cargv->args, v = vals; v - vals < valc && a < cargv->argend;) {
+        t = *a;
+        e = t + strlen(t);
+
+        /* <date>T<time>[tz] */
+        if (((rd = __read_iso8601_YMD(&d, &t, (t = *a), e)) != 0
+            || (rd = __read_iso8601_YM(&d, &t, t, e)) != 0
+            || (rd = __read_iso8601_Y(&d, &t, t, e)) != 0
+            || (rd = __read_iso8601_MD(&d, &t, t, e)) != 0)
+            && __match_chars_set(&t, t, e, "T ", 2, 1, 1) == 1
+            && ((rh = __read_iso8601_hms(&h, &t, t, e)) != 0
+                || (rh = __read_iso8601_hm(&h, &t, t, e)) != 0
+                || (rh = __read_iso8601_h(&h, &t, t, e)) != 0)) {
+            if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
+                memcpy(&z, &_TZ_LOCAL, sizeof(z));
+        }
+        /* <date> */
+        else if ((rd = __read_iso8601_YMD(&d, &t, (t = *a), e)) != 0
+                || (rd = __read_iso8601_YM(&d, &t, t, e)) != 0
+                || (rd = __read_iso8601_MD(&d, &t, t, e)) != 0) {
+            memcpy(&h, &_HMS_NOW, sizeof(h));
+            memcpy(&z, &_TZ_LOCAL, sizeof(z));
+        }
+        /* <time>[tz] */
+        else if ((rh = __read_iso8601_hms(&h, &t, (t = *a), e)) != 0
+                 || (rh = __read_iso8601_hm(&h, &t, t, e)) != 0) {
+            memcpy(&d, &_TODAY, sizeof(d));
+            if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
+                memcpy(&z, &_TZ_LOCAL, sizeof(z));
+        }
+        /* <hour><tz> */
+        else if ((rh = __read_iso8601_h(&h, &t, t, e)) != 0
+                 && (rz = __read_iso8601_tz(&z, &t, t, e)) != 0) {
+            memcpy(&d, &_TODAY, sizeof(d));
+        }
+        /* <year> */
+        else if ((rd = __read_iso8601_Y(&d, &t, (t = *a), e)) != 0) {
+            memcpy(&h, &_HMS_NOW, sizeof(h));
+            memcpy(&z, &_TZ_LOCAL, sizeof(z));
+        }
+        else
+            break;
+
+        if (!__match_end(t, e, 1))
+            break;
+        if (rd < 0)
+            return err_val_result(cargv, name, "datetime", *a, rd);
+        if (rh < 0)
+            return err_val_result(cargv, name, "datetime", *a, rh);
+        if (rz < 0)
+            return err_val_result(cargv, name, "datetime", *a, rz);
+
+        v->year = d.year;
+        v->month = d.month;
+        v->day = d.day;
+        v->hour = h.hour;
+        v->minute = h.minute;
+        v->second = h.second;
+        v->milisecond = h.milisecond;
+        memcpy(&v->tz, &z, sizeof(v->tz));
+
+        ++v;
+        ++a;
+    }
+    return (int)(v-vals);
+}
+
+enum cargv_err_t cargv_convert_localtime(
+    struct cargv_datetime_t *dst,
+    const struct cargv_datetime_t *src,
+    const struct cargv_timezone_t *tz)
+{
+    static const int days_of_month[] = {
+        0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+    };
+    _sint year, month, day, hour, minute;
+    _sint tzh, tzm;
+
+    year = (_sint)src->year;
+    month = (_sint)src->month;
+    day = (_sint)src->day;
+    hour = (_sint)src->hour;
+    minute = (_sint)src->minute;
+    tzh = -src->tz.hour + tz->hour;
+    tzm = -src->tz.minute + tz->minute;
+
+    hour += 24 + tzh;
+    minute += 60 + tzm;
+    hour += minute / 60 - 1;
+    if (day > 0) {  /* date included */
+        day += hour / 24 - 1;
+        if (day < 1) {
+            month -= 1;
+            if (month < 1) {
+                year -= 1;
+                if (year < -9999)
+                    return CARGV_VAL_OVERFLOW;
+                month = 12;
+            }
+            day = days_of_month[month] + __leap(year, month);
+        }
+        else if (day > days_of_month[month] + __leap(year, month)) {
+            month += 1;
+            if (month > 12) {
+                year += 1;
+                if (year > 9999)
+                    return CARGV_VAL_OVERFLOW;
+                month = 1;
+            }
+            day = 1;
+        }
+    }
+    hour %= 24;
+    minute %= 60;
+
+    dst->year = year;
+    dst->month = (_uint)month;
+    dst->day = (_uint)day;
+    dst->hour = hour;
+    dst->minute = (_uint)minute;
+    dst->second = src->second;
+    dst->milisecond = src->milisecond;
+    memcpy(&dst->tz, tz, sizeof(dst->tz));
+    return CARGV_OK;
+}
+
+
 
 int cargv_degree(
     struct cargv_t *cargv,
@@ -1146,18 +1362,20 @@ int cargv_degree(
     struct cargv_degree_t *vals, cargv_len_t valc)
 {
     int r;
-    _degree *v;
-    _str *a, e;
+    _degree *v, d;
+    _str *a, t, e;
 
-    v = vals;
-    a = cargv->args;
-    while (v - vals < valc && a < cargv->argend) {
-        r = read_degree_iso6709(v, &e, *a, strlen(*a), 1);
+    for (v = vals, a = cargv->args; v - vals < valc && a < cargv->argend;) {
+        t = *a;
+        e = t + strlen(t);
+        if ((r = read_degree_iso6709(&d, &t, t, e-t, 1)) == 0)
+            break;
+        // if (!__match_end(t, e, 1))
+        //     break;
         if (r < 0)
             return err_val_result(cargv, name, "degree", *a, r);
-        if (r == 0)
-            break;
-        v++;
+
+        memcpy(v++, &d, sizeof(*v));
         a++;
     }
     return (int)(v-vals);
@@ -1169,51 +1387,25 @@ int cargv_geocoord(
     struct cargv_geocoord_t *vals, cargv_len_t valc)
 {
     int r;
-    _geocoord *v;
-    _str *a, e;
+    _geocoord *v, g;
+    _str *a, t, e;
 
-    v = vals;
-    a = cargv->args;
-    while (v - vals < valc && a < cargv->argend) {
-        r = read_geocoord_iso6709(v, &e, *a, strlen(*a), 1);
+    for (v = vals, a = cargv->args; v - vals < valc && a < cargv->argend;) {
+        t = *a;
+        e = t + strlen(t);
+        if ((r = read_geocoord_iso6709(&g, &t, t, e-t, 0)) == 0)
+            break;
+        if (!__match_end(t, e, 1))
+            break;
         if (r < 0)
             return err_val_result(cargv, name, "geocoord", *a, r);
-        if (r == 0)
-            break;
-        v++;
+
+        memcpy(v++, &g, sizeof(*v));
         a++;
     }
     return (int)(v-vals);
 }
 
-
-time_t cargv_get_today(struct cargv_date_t *val)
-{
-    time_t t;
-    struct tm *lt;
-
-    time(&t);
-    lt = localtime(&t);
-
-    val->year = lt->tm_year;
-    val->month = lt->tm_mon;
-    val->day = lt->tm_mday;
-    return t;
-}
-
-time_t cargv_get_now(struct cargv_time_t *val)
-{
-    time_t t;
-    struct tm *lt;
-
-    time(&t);
-    lt = localtime(&t);
-
-    val->hour = lt->tm_hour;
-    val->minute = lt->tm_mon;
-    val->second = lt->tm_mday;
-    return t;
-}
 
 double cargv_get_degree(const struct cargv_degree_t *val)
 {
