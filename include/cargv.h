@@ -23,10 +23,6 @@ struct cargv_version_t {
 };
 
 
-/* Common types */
-typedef ptrdiff_t   cargv_len_t;
-
-
 /* cargv object */
 struct cargv_t {
     const char *name;
@@ -40,16 +36,18 @@ enum cargv_err_t {
 };
 
 
-/* Integral */
+/* Basic types */
+typedef ptrdiff_t   cargv_len_t;
 typedef int64_t     cargv_int_t;
 typedef uint64_t    cargv_uint_t;
+typedef double      cargv_real_t;
 
 #define CARGV_SINT_MIN  INT64_MIN
 #define CARGV_SINT_MAX  INT64_MAX
 #define CARGV_UINT_MAX  UINT64_MAX
 
 
-/* Datetime */
+/* Datetime types */
 struct cargv_date_t {
     cargv_int_t year;    /* -9999..9999 */
     cargv_uint_t month;  /* 0..12, 0 if omitted */
@@ -80,37 +78,36 @@ struct cargv_datetime_t {
     struct cargv_timezone_t tz;
 };
 
-#define CARGV_THIS_YEAR   INT64_MIN
-#define CARGV_THIS_MONTH  0
-#define CARGV_THIS_DAY    0
-extern const struct cargv_date_t *CARGV_TODAY;
+#define CARGV_YEAR_DEFAULT        CARGV_SINT_MIN  /* omitted */
+#define CARGV_MONTH_DEFAULT       0               /* omitted */
+#define CARGV_DAY_DEFAULT         0               /* omitted */
+/*extern const struct cargv_date_t *CARGV_DATE_DEFAULT;*/
 
-#define CARGV_TZ_LOCAL_HOUR   INT64_MIN
-#define CARGV_TZ_LOCAL_MINUTE INT64_MIN
+#define CARGV_TZ_HOUR_DEFAULT     CARGV_SINT_MIN  /* omitted */
+#define CARGV_TZ_MINUTE_DEFAULT   CARGV_SINT_MIN  /* omitted */
 extern const struct cargv_timezone_t *CARGV_TZ_LOCAL;
 
-#define CARGV_THIS_HOUR        UINT64_MAX
-#define CARGV_THIS_MINUTE      UINT64_MAX
-#define CARGV_THIS_SECOND      UINT64_MAX
-#define CARGV_THIS_MILISECOND  UINT64_MAX
-extern const struct cargv_time_t *CARGV_NOW;
+#define CARGV_HOUR_DEFAULT        CARGV_UINT_MAX   /* omitted */
+#define CARGV_MINUTE_DEFAULT      CARGV_UINT_MAX   /* omitted */
+#define CARGV_SECOND_DEFAULT      CARGV_UINT_MAX   /* omitted */
+#define CARGV_MILISECOND_DEFAULT  CARGV_UINT_MAX   /* omitted */
+/*extern const struct cargv_time_t *CARGV_TIME_DEFAULT;*/
 
-extern const struct cargv_datetime_t *CARGV_TODAY_NOW;
+/*extern const struct cargv_datetime_t *CARGV_DATETIME_DEFAULT;*/
 
 extern const struct cargv_timezone_t *CARGV_UTC;
 extern const struct cargv_timezone_t *CARGV_TZ_SEOUL;
 
 
-/* Geocoord */
+/* Geocoord types */
 struct cargv_degree_t {
-    cargv_int_t deg;  /* ddd.dddddd */
-    cargv_int_t min;  /*  mm.mmmmmm */
-    cargv_int_t sec;  /*  ss.ssssss */
+    cargv_int_t degree;  /* ddd.dddddd */
+    cargv_int_t minute;  /*  mm.mmmmmm */
+    cargv_int_t second;  /*  ss.ssssss */
 };
 
 struct cargv_geocoord_t {
     struct cargv_degree_t latitude, longitude;
-    /* int altitude; */
 };
 
 
@@ -150,9 +147,9 @@ int cargv_len(const struct cargv_t *cargv);
 
 /* Shift: remove the first N arguments from the argument list.
 
-[out] return: Number of arguments removed.
-              0 if arguments are less than requested, and also untouched.
-[in]  cargv:  cargv object.
+[out] return: Number of arguments actually removed.
+              0 if arguments are less than requested.
+[in]  cargv:  cargv object. Untouched when returns 0.
 [in]  argc:   Number of arguments to remove.
 */
 CARGV_EXPORT
@@ -222,6 +219,8 @@ int cargv_oneof(
 
 /* Read signed integer value arguments.
 
+  [+-]<0-9>{1..}
+
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any values are not cargv_int_t.
 [out] vals:   Array to read values into.
@@ -236,6 +235,8 @@ int cargv_int(
 
 /* Read unsigned integer value arguments.
 
+  [+]<0-9>{1..}
+
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any values are not cargv_uint_t.
 [out] vals:   Array to read values into.
@@ -248,52 +249,24 @@ int cargv_uint(
     cargv_uint_t *vals, cargv_len_t valc);
 
 
-/* ISO 8601 datetime, modified.
-
-  Years
-    [+-]Y{1-4}                Year 0 is 1 B.C., -1 is 2 B.C. and so on.
-                              `month` and `day` are filled with 0.
-
-  Months
-    [+-]Y{1-4}-M{1-2}         `day` is filled with 0.
-    [+-]Y{1-4}/M{1-2}
-
-  Calendar dates
-    [+-]YYYYMMDD
-    [+-]Y{1-4}-M{1-2}-D{1-2}
-    [+-]Y{1-4}/M{1-2}/D{1-2}
-    --M{1-2}-D{1-2}
-    --M{1-2}/D{1-2}           `year` is filled with CARGV_TODAY.
-
-  Week dates: NOT supported
-    [+-]Y{1-4}-Www-D
-    [+-]YYYYWwwD
-
-  Ordinal dates
-    [+-]YYYYDDD
-    [+-]Y{1-4}-DDD
-    [+-]Y{1-4}/DDD
-
-  Times
-    hh:mm:ss[.sss]    `,` may be used.
-    hhmmss[.sss]
-    hh:mm[.mmm]
-    hhmm[.mmm]
-    hh[.hhh]
-
-  Time zones
-    Z                 UTC
-    (+|-)hh:mm        time offset
-    (+|-)hhmm
-    (+|-)hh
-    (omitted)         Uses system local time
-
-  Date-times
-    <date>T<time>
-    <date> <time>
-*/
-
 /* Read date value arguments.
+
+Modified ISO 8601:
+
+  [+-]Y[..4]                  Years only
+
+  [+-]Y[..4]<-/>[M]M          Years and months
+
+  [+-]Y[..4]<-/>[M]M<-/>[D]D  Calendar dates
+  [+-]YYYYMMDD
+
+  --[M]M<-/>[D]D              Months and days only
+
+  [+-]Y[..4]-Www-D            Week days: NOT supported
+  [+-]YYYYWwwD
+
+  [+-]YYYYDDD                 Ordinal dates: WILL be supported
+  [+-]Y[..4]<-/>DDD
 
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid dates.
@@ -308,6 +281,19 @@ int cargv_date(
 
 /* Read time, including time zone, value arguments.
 
+Modified ISO 8601:
+
+  [h]h:[m]m:[s]s[<.,>s[..3]][tz]  Hours, minutes, seconds and miliseconds
+  hhmmss[<.,>s[..3]][tz]
+
+  [h]h:[m]m[<.,>m[..6]][tz]       Hours, minutes and fraction of minutes
+  hhmm[<.,>m[..6]][tz]
+
+  [h]h[<.,>h[..8]][tz]            Hours with fraction
+
+Fraction is WILL be supported.
+Omitted time zone represents system local time.
+
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid.
 [out] vals:   Array to read values into.
@@ -321,6 +307,13 @@ int cargv_time(
 
 /* Read time zone arguments.
 
+Modified ISO 8601:
+
+  Z               UTC
+  <+->[h]h:[m]m   time offset
+  <+->hhmm
+  <+->[h]h
+
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid.
 [out] vals:   Array to read values into.
@@ -333,6 +326,13 @@ int cargv_timezone(
     struct cargv_timezone_t *vals, cargv_len_t valc);
 
 /* Read date and time value arguments.
+
+Modified ISO 8601:
+
+  <date>T<time>[tz]
+  <date> <time>[tz]
+  <date>
+  <time>[tz]
 
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid dates.
@@ -361,11 +361,12 @@ enum cargv_err_t cargv_convert_localtime(
 
 /* Read degree value arguments.
 
-Supported formats are:
+Modified ISO 6709:
 
-  ISO 6709 degree   (+|-)[D]DD[.DDDDDD]
-                    (+|-)[D]DDMM[.MMMM]
-                    (+|-)[D]DDMMSS[.SS]
+  <+->D[..3][<.,>D[..6]]      Degrees with fraction
+  <+->[D]DDMM[<.,>M[..4]]     Degrees, and minutes with fraction of minutes
+  <+->[D]DDMMSS[<.,>S[..2]]   Degrees, minutes and seconds with fraction
+                              of seconds
 
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any valus are not valid degree.
@@ -381,9 +382,9 @@ int cargv_degree(
 
 /* Read geocoord value arguments.
 
-Supported formats are:
+Modified ISO 6709:
 
-  ISO 6709 geocoord     LATITUDELONGITUDE[/]
+  <latitude><longitude>[/]  Latitude and longitude
 
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any values are not valid geocoord.
@@ -399,7 +400,7 @@ int cargv_geocoord(
 
 /* Convert to degree with decimal fraction */
 CARGV_EXPORT
-double cargv_get_degree(const struct cargv_degree_t *val);
+cargv_real_t cargv_get_degree(const struct cargv_degree_t *val);
 
 
 #endif /* __cargv_h__ */

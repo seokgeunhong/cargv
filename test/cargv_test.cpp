@@ -104,7 +104,6 @@ TEST_F(Test_cargv, text)
     EXPECT_STREQ(t[0], "abc");
     EXPECT_STREQ(t[1], "--text");
     EXPECT_STREQ(t[2], "def");
-    EXPECT_EQ(t[3], nullptr);
 
     EXPECT_EQ(cargv_shift(&cargv, 3), 3);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
@@ -118,9 +117,15 @@ TEST_F(Test_cargv, oneof)
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "dog--cat", "--", v, 4), 2);
+    EXPECT_STREQ(v[0], "dog");
+    EXPECT_STREQ(v[1], "cat");
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "|dog|cat|", "|", v, 4), 2);
+    EXPECT_STREQ(v[0], "dog");
+    EXPECT_STREQ(v[1], "cat");
+    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "cow|dog", "|", v, 4), 1);
+    EXPECT_STREQ(v[0], "dog");
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "cow|cat", "|", v, 4), 0);
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "||", "|", v, 4), 0);
-    EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "|dog|cat|", "|", v, 4), 2);
     EXPECT_EQ(cargv_shift(&cargv, 2), 2);
     EXPECT_EQ(cargv_oneof(&cargv, "ONEOF", "dog||cat", "||", v, 4), 0);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
@@ -242,7 +247,7 @@ TEST_F(Test_cargv, date)
         {1010,10,10}, {1976,6,17}, {1976,6,17}, {-45,1,23},
         {-1010,1,0}, {1001,1,0}, {-100,2,0}, {1,2,3},
         {2019,0,0}, {0,0,0}, {0,0,0}, {-100,0,0}, {1,0,0},
-        {CARGV_THIS_YEAR,1,2}, {CARGV_THIS_YEAR,2,3}, {CARGV_THIS_YEAR,4,5},
+        {CARGV_YEAR_DEFAULT,1,2}, {CARGV_YEAR_DEFAULT,2,3}, {CARGV_YEAR_DEFAULT,4,5},
     };
     cargv_date_t a;
     cargv_date_t *v = vals;
@@ -443,19 +448,19 @@ TEST_F(Test_cargv, datetime)
         {1976,6,17,8,0,0,0,{9,30}},
         {45,1,23,1,2,3,0,*CARGV_UTC},
         {45,1,23,1,2,3,0,*CARGV_TZ_LOCAL},
-        {45,1,23,CARGV_THIS_HOUR,CARGV_THIS_MINUTE,CARGV_THIS_SECOND,
-         CARGV_THIS_MILISECOND,*CARGV_TZ_LOCAL},
-        {11,CARGV_THIS_MONTH,CARGV_THIS_DAY,12,0,0,0,*CARGV_TZ_LOCAL},
-        {11,CARGV_THIS_MONTH,CARGV_THIS_DAY,12,0,0,0,*CARGV_UTC},
-        {CARGV_THIS_YEAR,2,29,CARGV_THIS_HOUR,CARGV_THIS_MINUTE,
-         CARGV_THIS_SECOND,CARGV_THIS_MILISECOND,*CARGV_TZ_LOCAL},
-        {CARGV_THIS_YEAR,1,2,0,0,0,0,*CARGV_UTC},
-        {CARGV_THIS_YEAR,2,3,24,0,0,0,{-1,0}},
-        {CARGV_THIS_YEAR,4,5,23,59,59,0,{-9,-20}},
-        {10,0,0,CARGV_THIS_HOUR,CARGV_THIS_MINUTE,CARGV_THIS_SECOND,
-         CARGV_THIS_MILISECOND,*CARGV_TZ_LOCAL},
-        {CARGV_THIS_YEAR,CARGV_THIS_MONTH,CARGV_THIS_DAY,10,0,0,0,*CARGV_UTC},
-        {CARGV_THIS_YEAR,CARGV_THIS_MONTH,CARGV_THIS_DAY,23,59,59,0,*CARGV_TZ_LOCAL},
+        {45,1,23,CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,CARGV_SECOND_DEFAULT,
+         CARGV_MILISECOND_DEFAULT,*CARGV_TZ_LOCAL},
+        {11,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,12,0,0,0,*CARGV_TZ_LOCAL},
+        {11,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,12,0,0,0,*CARGV_UTC},
+        {CARGV_YEAR_DEFAULT,2,29,CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,
+         CARGV_SECOND_DEFAULT,CARGV_MILISECOND_DEFAULT,*CARGV_TZ_LOCAL},
+        {CARGV_YEAR_DEFAULT,1,2,0,0,0,0,*CARGV_UTC},
+        {CARGV_YEAR_DEFAULT,2,3,24,0,0,0,{-1,0}},
+        {CARGV_YEAR_DEFAULT,4,5,23,59,59,0,{-9,-20}},
+        {10,0,0,CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,CARGV_SECOND_DEFAULT,
+         CARGV_MILISECOND_DEFAULT,*CARGV_TZ_LOCAL},
+        {CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,10,0,0,0,*CARGV_UTC},
+        {CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,23,59,59,0,*CARGV_TZ_LOCAL},
     };
     cargv_datetime_t a;
     const cargv_datetime_t *v = vals;
@@ -578,31 +583,31 @@ TEST_F(Test_cargv, convert_localtime_error)
 TEST_F(Test_cargv, degree)
 {
     static const char *args[] = { _name,
-        "-32", "+9103", "+32.3957", "-13239.5", "+0793333.334", "-0",
+        "-32", "+9103", "+32.3957", "-13239.5", "+0793333.33", "-0",
     };
     cargv_degree_t v[6];
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 6), 6);
-    EXPECT_EQ(v[0].deg, -32000000);
-    EXPECT_EQ(v[0].min, 0);
-    EXPECT_EQ(v[0].sec, 0);
-    EXPECT_EQ(v[1].deg, 91000000);
-    EXPECT_EQ(v[1].min, 3000000);
-    EXPECT_EQ(v[1].sec, 0);
-    EXPECT_EQ(v[2].deg, 32395700);
-    EXPECT_EQ(v[2].min, 0);
-    EXPECT_EQ(v[2].sec, 0);
-    EXPECT_EQ(v[3].deg, -132000000);
-    EXPECT_EQ(v[3].min, -39500000);
-    EXPECT_EQ(v[3].sec, 0);
-    EXPECT_EQ(v[4].deg, 79000000);
-    EXPECT_EQ(v[4].min, 33000000);
-    EXPECT_EQ(v[4].sec, 33330000);
-    EXPECT_EQ(v[5].deg, 0);
-    EXPECT_EQ(v[5].min, 0);
-    EXPECT_EQ(v[5].sec, 0);
+    EXPECT_EQ(v[0].degree, -32000000);
+    EXPECT_EQ(v[0].minute, 0);
+    EXPECT_EQ(v[0].second, 0);
+    EXPECT_EQ(v[1].degree, 91000000);
+    EXPECT_EQ(v[1].minute, 3000000);
+    EXPECT_EQ(v[1].second, 0);
+    EXPECT_EQ(v[2].degree, 32395700);
+    EXPECT_EQ(v[2].minute, 0);
+    EXPECT_EQ(v[2].second, 0);
+    EXPECT_EQ(v[3].degree, -132000000);
+    EXPECT_EQ(v[3].minute, -39500000);
+    EXPECT_EQ(v[3].second, 0);
+    EXPECT_EQ(v[4].degree, 79000000);
+    EXPECT_EQ(v[4].minute, 33000000);
+    EXPECT_EQ(v[4].second, 33330000);
+    EXPECT_EQ(v[5].degree, 0);
+    EXPECT_EQ(v[5].minute, 0);
+    EXPECT_EQ(v[5].second, 0);
     EXPECT_EQ(cargv_shift(&cargv, 6), 6);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
@@ -644,18 +649,18 @@ TEST_F(Test_cargv, geocoord)
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 2), 2);
-    EXPECT_EQ(v[0].latitude.deg, -32395700);
-    EXPECT_EQ(v[0].latitude.min, 0);
-    EXPECT_EQ(v[0].latitude.sec, 0);
-    EXPECT_EQ(v[0].longitude.deg, 132000000);
-    EXPECT_EQ(v[0].longitude.min,  39570000);
-    EXPECT_EQ(v[0].longitude.sec,  0);
-    EXPECT_EQ(v[1].latitude.deg, 62300000);
-    EXPECT_EQ(v[1].latitude.min, 0);
-    EXPECT_EQ(v[1].latitude.sec, 0);
-    EXPECT_EQ(v[1].longitude.deg, 0);
-    EXPECT_EQ(v[1].longitude.min, 0);
-    EXPECT_EQ(v[1].longitude.sec, 0);
+    EXPECT_EQ(v[0].latitude.degree, -32395700);
+    EXPECT_EQ(v[0].latitude.minute, 0);
+    EXPECT_EQ(v[0].latitude.second, 0);
+    EXPECT_EQ(v[0].longitude.degree, 132000000);
+    EXPECT_EQ(v[0].longitude.minute,  39570000);
+    EXPECT_EQ(v[0].longitude.second,  0);
+    EXPECT_EQ(v[1].latitude.degree, 62300000);
+    EXPECT_EQ(v[1].latitude.minute, 0);
+    EXPECT_EQ(v[1].latitude.second, 0);
+    EXPECT_EQ(v[1].longitude.degree, 0);
+    EXPECT_EQ(v[1].longitude.minute, 0);
+    EXPECT_EQ(v[1].longitude.second, 0);
     EXPECT_EQ(cargv_shift(&cargv, 2), 2);
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }

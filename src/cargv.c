@@ -32,6 +32,7 @@ typedef const char               *_str;
 typedef cargv_len_t               _len;
 typedef cargv_int_t               _sint;
 typedef cargv_uint_t              _uint;
+typedef cargv_real_t              _real;
 typedef struct cargv_date_t       _ymd;
 typedef struct _hms_t {
     _uint hour;    /* 0..24 */
@@ -49,14 +50,6 @@ typedef struct cargv_geocoord_t   _geocoord;
 #define _UINT_MAX   CARGV_UINT_MAX
 
 
-static const _str opt_short_prefix = "-";
-static const _len opt_short_prefix_len = 1;
-static const _str opt_long_prefix  = "--";
-static const _len opt_long_prefix_len = 2;
-static const _str opt_wildcard = "*";
-static const _len opt_wildcard_len = 1;
-
-
 /* power of 10 */
 static int __p10(int e)
 {
@@ -66,15 +59,14 @@ static int __p10(int e)
     return x;
 }
 
-/* See if text is empty, only when entire is nonzero.
+/* See if text ran out.
 
 [out] return: 1 if empty, else 0.
 [in] text, textend: Text to match.
-[in] entire: If nonzero, text should end, or fail.
 */
-static int __match_end(_str text, _str textend, int entire)
+static int __match_end(_str text, _str textend)
 {
-    return !(entire && text < textend);
+    return !(text < textend);
 }
 
 /* See if the start of a text is matched to a pattern.
@@ -357,30 +349,37 @@ static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
 }
 
 
-static const struct cargv_date_t _TODAY
-    = {CARGV_THIS_YEAR, CARGV_THIS_MONTH, CARGV_THIS_DAY};
-const struct cargv_date_t *CARGV_TODAY = &_TODAY;
+static const struct cargv_date_t _YMD_DEFAULT
+    = {CARGV_YEAR_DEFAULT, CARGV_MONTH_DEFAULT, CARGV_DAY_DEFAULT};
+/*const struct cargv_date_t *CARGV_DATE_DEFAULT = &_YMD_DEFAULT;*/
 
-static const struct _hms_t _HMS_NOW = {
-    CARGV_THIS_HOUR, CARGV_THIS_MINUTE, CARGV_THIS_SECOND, CARGV_THIS_MILISECOND,
+static const struct _hms_t _HMS_DEFAULT = {
+    CARGV_HOUR_DEFAULT, CARGV_MINUTE_DEFAULT, CARGV_SECOND_DEFAULT,
+    CARGV_MILISECOND_DEFAULT,
 };
 
-static const struct cargv_timezone_t _TZ_LOCAL
-    = {CARGV_TZ_LOCAL_HOUR, CARGV_TZ_LOCAL_MINUTE};
-const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_LOCAL;
+static const struct cargv_timezone_t _TZ_DEFAULT
+    = {CARGV_TZ_HOUR_DEFAULT, CARGV_TZ_MINUTE_DEFAULT};
+const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_DEFAULT;
 
-static const struct cargv_time_t _NOW = {
-    CARGV_THIS_HOUR, CARGV_THIS_MINUTE, CARGV_THIS_SECOND, CARGV_THIS_MILISECOND,
-    {CARGV_TZ_LOCAL_HOUR, CARGV_TZ_LOCAL_MINUTE}
+/*
+static const struct cargv_time_t _TIME_DEFAULT = {
+    CARGV_HOUR_DEFAULT, CARGV_MINUTE_DEFAULT, CARGV_SECOND_DEFAULT,
+    CARGV_MILISECOND_DEFAULT,
+    {CARGV_TZ_HOUR_DEFAULT, CARGV_TZ_MINUTE_DEFAULT}
 };
-const struct cargv_time_t *CARGV_NOW = &_NOW;
+const struct cargv_time_t *CARGV_TIME_DEFAULT = &_TIME_DEFAULT;
+*/
 
-static const struct cargv_datetime_t _TODAY_NOW = {
-    CARGV_THIS_YEAR, CARGV_THIS_MONTH, CARGV_THIS_DAY,
-    CARGV_THIS_HOUR, CARGV_THIS_MINUTE, CARGV_THIS_SECOND, CARGV_THIS_MILISECOND,
-    {CARGV_TZ_LOCAL_HOUR, CARGV_TZ_LOCAL_MINUTE}
+/*
+static const struct cargv_datetime_t _DATETIME_DEFAULT = {
+    CARGV_YEAR_DEFAULT, CARGV_MONTH_DEFAULT, CARGV_DAY_DEFAULT,
+    CARGV_HOUR_DEFAULT, CARGV_MINUTE_DEFAULT, CARGV_SECOND_DEFAULT,
+    CARGV_MILISECOND_DEFAULT,
+    {CARGV_TZ_HOUR_DEFAULT, CARGV_TZ_MINUTE_DEFAULT}
 };
-const struct cargv_datetime_t *CARGV_TODAY_NOW = &_TODAY_NOW;
+const struct cargv_datetime_t *CARGV_DATETIME_DEFAULT = &_DATETIME_DEFAULT;
+*/
 
 static const struct cargv_timezone_t _UTC         = {+0,0};
 static const struct cargv_timezone_t _TZ_SEOUL    = {+9,0};
@@ -431,7 +430,7 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
         m = (n % 10000) / 100;
         d = n % 100;
     }
-    /* [+-]Y{1-4}<-/>M{1-2}<-/>D{1-2} */
+    /* [+-]Y[..4]<-/>[M]M<-/>[D]D */
     else if (__read_sign(&sign, &t, (t = text), textend) >= 0
              && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4
              && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
@@ -473,7 +472,7 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
     _sint sign, y;
     _uint m, n;
 
-    /* [+-]Y{1-4}<-/>M{1-2} */
+    /* [+-]Y[..4]<-/>[M]M */
     if (__read_sign(&sign, &t, (t = text), textend) >= 0
         && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4
         && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
@@ -491,7 +490,7 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
 
     val->year = y;
     val->month = m;
-    val->day = CARGV_THIS_DAY;
+    val->day = CARGV_DAY_DEFAULT;
     return (int)(*next - text);
 }
 
@@ -511,7 +510,7 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
     _sint sign, y;
     _uint n;
 
-    /* [+-]Y{1-4} */
+    /* [+-]Y[..4] */
     if (__read_sign(&sign, &t, (t = text), textend) >= 0
         && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4) {
         y = (_sint)n * sign;
@@ -526,8 +525,8 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
         return CARGV_VAL_OVERFLOW;
 
     val->year = y;
-    val->month = CARGV_THIS_MONTH;
-    val->day = CARGV_THIS_DAY;
+    val->month = CARGV_MONTH_DEFAULT;
+    val->day = CARGV_DAY_DEFAULT;
     return (int)(*next - text);
 }
 
@@ -552,7 +551,7 @@ static int __read_iso8601_MD(_ymd *val, _str *next, _str text, _str textend)
         d = n % 100;
         m = n / 100;
     }
-    /* --M{1-2}<-/>D{1-2} */
+    /* --[M]M<-/>[D]D */
     else if (__match_str(&t, (t = text), textend, "--", 2) == 2
              && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2
              && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
@@ -567,7 +566,7 @@ static int __read_iso8601_MD(_ymd *val, _str *next, _str text, _str textend)
     if (!(m > 0 && m <= 12 && d > 0 && d <= __days_of_month_this_year(m)))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = CARGV_THIS_YEAR;
+    val->year = CARGV_YEAR_DEFAULT;
     val->month = m;
     val->day = d;
     return (int)(*next - text);
@@ -686,13 +685,13 @@ static int __read_iso8601_hms(_hms *val, _str *next, _str text, _str textend)
     _str t;
     _uint h, m, s, n;
 
-    /* hhmmss[.sss] */
+    /* hhmmss[<.,>s[..3]] */
     if (__read_dec(&n, &t, (t = text), textend) == 6) {
         h = n / 10000;
         m = (n % 10000) / 100;
         s = n % 100;
     }
-    /* h{1-2}:m{1-2}:s{1-2}[.sss] */
+    /* [h]h:[m]m:[s]s[<.,>s[..3]] */
     else if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2
              && __match_chars_set(&t, t, textend, ":", 1, 1, 1) == 1
              && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2
@@ -735,7 +734,7 @@ static int __read_iso8601_hm(_hms *val, _str *next, _str text, _str textend)
         h = n / 100;
         m = n % 100;
     }
-    /* h{1-2}:m{1-2}[.mmm] */
+    /* [h]h:[m]m[.mmm] */
     else if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2
              && __match_chars_set(&t, t, textend, ":", 1, 1, 1) == 1
              && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2) {
@@ -771,7 +770,7 @@ static int __read_iso8601_h(_hms *val, _str *next, _str text, _str textend)
     _str t;
     _uint h, n;
 
-    /* h{1-2}[.hhh] */
+    /* [h]h[.hhh] */
     if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2) {
     }
     else
@@ -790,119 +789,103 @@ static int __read_iso8601_h(_hms *val, _str *next, _str text, _str textend)
     return (int)(*next - text);
 }
 
-/* Read a ISO 6709 degree.
-
-    <+ or ->[D]DD[.DDDDDD], <+ or ->[D]DDMM[.MMMM], or <+ or ->[D]DDMMSS[.SS]
+/* Read a modified ISO 6709 degree.
 
 [out] return: Number of characters succesfully read.
-              0 if none found.
-              <0 if error; See cargv_err_t.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
 [out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
+[in] text, textend: Text to match.
 */
-static int read_degree_iso6709(
-    _degree *val,
-    _str *next, _str text, _len textlen, int entire)
+static int __read_iso6709_degree(
+    _degree *val, _str *next, _str text, _str textend)
 {
-    _str t = text, tend = text + textlen;
-    _uint a, b;
-    int alen, blen;
+    _str tn, tf;
+    int rn, rf;
+    _sint sign;
+    _uint n, f;
+    _sint d, m, s;
 
-    memset(val, 0, sizeof(*val));
-
-    /* sign is mandatory */
-    if (!__match_chars_set(&t, t, tend, "+-", 2, 1, 1))
+    /* <+->D[..3] */
+    if (!(__read_sign(&sign, &tn, (tn = text), textend) == 1
+          && (rn = __read_dec(&n, &tn, tn, textend)) > 0))
         return 0;
 
-    if ((alen = __read_dec(&a, &t, t, tend)) <= 0)
-        return 0;
+    /* [<.,>D[..6]] */
+    if (!(__match_chars_set(&tf, (tf = tn), textend, ".", 1, 1, 1) == 1
+          && (rf = __read_dec(&f, &tf, tf, textend)) > 0)) {
+        tf = tn;
+        rf = 0;
+        f = 0;
+    }
 
-    /* dot is optinal */
-    if (__match_chars_set(&t, t, tend, ".", 1, 1, 1)) {
-        if (!((blen = __read_dec(&b, &t, t, tend)) > 0))
-            return 0;
+    /* D[..3][<.,>D[..6]] */
+    if (rn >= 1 && rn <= 3 && rf <= 6) {
+        d = (_sint)n * 1000000 + f / __p10(rf-6) * __p10(6-rf);
+        m = 0;
+        s = 0;
+        val->minute = val->second = 0;
     }
-    else {
-        b = 0;
-        blen = 0;
+    /* [D]DDMM[<.,>M[..4]] */
+    else if (rn >= 4 && rn <= 5 && rf <= 4) {
+        d = (_sint)n / 100 * 1000000;
+        m = (_sint)n % 100 * 1000000 + f / __p10(rf-4) * __p10(4-rf) * 100;
+        s = 0;
     }
-    if (!__match_end(t, tend, entire))
-        return 0;
-
-    /* [D]DD[.DDDDDD] */
-    if (alen < 4) {
-        val->deg = a * 1000000 + b / __p10(blen-6) * __p10(6-blen);
-        val->min = val->sec = 0;
-    }
-    /* [D]DDMM[.MMMM] */
-    else if (alen < 6) {
-        val->deg = a / 100 * 1000000;
-        val->min = a % 100 * 1000000 + b / __p10(blen-4) * __p10(4-blen) * 100;
-        val->sec = 0;
-    }
-    /* [D]DDMMSS[.SS] */
-    else if (alen < 8) {
-        val->deg = a / 10000 * 1000000;
-        val->min = a % 10000 / 100 * 1000000;
-        val->sec = a % 100 * 1000000 + b / __p10(blen-2) * __p10(2-blen) * 10000;
+    /* [D]DDMMSS[<.,>S[..2]] */
+    else if (rn >= 6 && rn <= 7 && rf <= 2) {
+        d = (_sint)n / 10000 * 1000000;
+        m = (_sint)n % 10000 / 100 * 1000000;
+        s = (_sint)n % 100 * 1000000 + f / __p10(rf-2) * __p10(2-rf) * 10000;
     }
     else
+        return 0;
+
+    *next = tf;
+
+    if (!(d <= 360*1000000 && m <= 60*1000000 && s <= 60*1000000))
         return CARGV_VAL_OVERFLOW;
 
-    if (!(val->deg <= 360000000
-            && val->min <= 60000000
-            && val->sec <= 60000000))
-        return CARGV_VAL_OVERFLOW;
-
-    if (*text == '-') {
-        val->deg = -val->deg;
-        val->min = -val->min;
-        val->sec = -val->sec;
-    }
-
-    return (int)((*next = t) - text);
+    val->degree = sign * d;
+    val->minute = sign * m;
+    val->second = sign * s;
+    return (int)(*next - text);
 }
 
-/* Read a ISO 6709 geocoord.
-
-    LATITUDELONGITUDE[/]
+/* Read a modified ISO 6709 geocoord.
 
 [out] return: Number of characters succesfully read.
-              0 if none found.
-              <0 if error; See cargv_err_t.
+              0 if none found. `next` untouched.
+              <0 if matched but wrong. `next` still progress.
 [out] val: Read value. Untouched on failure.
 [out] next: Points end of matched text. Untouched if no match found.
-[in] text, textlen: Text to match.
-[in] entire: If nonzero, text should end after matching, or fail.
+[in] text, textend: Text to match.
 */
-static int read_geocoord_iso6709(
-    _geocoord *val,
-    _str *next, _str text, _len textlen, int entire)
+static int __read_iso6709_geocoord(
+    _geocoord *val, _str *next, _str text, _str textend)
 {
-    _str t = text, tend = text + textlen;
-    int a, b;
+    _str t;
+    int ry, rx;
+    _degree x, y;
 
-    memset(val, 0, sizeof(*val));
-
-    if ((a = read_degree_iso6709(&val->latitude, &t, t, tend-t, 0)) == 0)
-        return 0;
-    if ((b = read_degree_iso6709(&val->longitude, &t, t, tend-t, 0)) == 0)
-        return 0;
-    __match_chars_set(&t, t, tend, "/", 1, 0, 1);   /* optional solidus */
-    if (!__match_end(t, tend, entire))
+    /* <latitude><longitude>[/] */
+    if ((ry = __read_iso6709_degree(&y, &t, (t = text), textend)) != 0
+        && (rx = __read_iso6709_degree(&x, &t, t, textend)) != 0
+        && __match_chars_set(&t, t, textend, "/", 1, 0, 1) >= 0) {
+    }
+    else
         return 0;
 
     *next = t;
 
-    if (a < 0 || b < 0
-            || !(val->latitude.deg >= -90000000
-            && val->latitude.deg <= 90000000
-            && val->longitude.deg >= -180000000
-            && val->longitude.deg <= 180000000))
+    if (ry < 0 || rx < 0
+        || !(y.degree >= -90*1000000 && y.degree <= 90*1000000)
+        || !(x.degree >= -180*1000000 && x.degree <= 180*1000000))
         return CARGV_VAL_OVERFLOW;
 
+    memcpy(&val->latitude, &y, sizeof(val->latitude));
+    memcpy(&val->longitude, &x, sizeof(val->longitude));
     return (int)(*next - text);
 }
 
@@ -969,19 +952,18 @@ int cargv_opt(struct cargv_t *cargv, const char *optlist)
 
     /* Argument is short option of `*`, default `-*`, matches any option */
     o = optlist;
-    wildcard
-        = __match_str(&o, o, oend, opt_short_prefix, opt_short_prefix_len)
-        && __match_str(&o, o, oend, opt_wildcard, opt_wildcard_len)
-        && __match_end(o, oend, 1);
+    wildcard = __match_str(&o, o, oend, "-", 1)
+               && __match_str(&o, o, oend, "*", 1)
+               && __match_end(o, oend);
 
     /* Split optlist */
     o = optlist;
-    __unmatch_str(&lopt, o, oend, opt_long_prefix, opt_long_prefix_len);
+    __unmatch_str(&lopt, o, oend, "--", 2);
 
     /* Argument is long option, like `--long-option` */
     a = *cargv->args;
-    if (__match_str(&a, a, aend, opt_long_prefix, opt_long_prefix_len)) {
-        if (!(a < aend))
+    if (__match_str(&a, a, aend, "--", 2)) {
+        if (__match_end(a, aend))
             return 0;   /* -- */
         if (wildcard)
             return 1;
@@ -989,25 +971,25 @@ int cargv_opt(struct cargv_t *cargv, const char *optlist)
         /* Iterate long options */
         o = lopt;
         while (o < oend) {
-            o += opt_long_prefix_len;   /* already matched */
-            __unmatch_str(&lopt, o, oend, opt_long_prefix, opt_long_prefix_len);
-            if (__match_str(&a, a, aend, o, lopt-o) && __match_end(a, aend, 1))
+            o += 2;   /* already matched */
+            __unmatch_str(&lopt, o, oend, "--", 2);
+            if (__match_str(&a, a, aend, o, lopt-o) && __match_end(a, aend))
                 return 1;
             o = lopt;
         }
     }
     /* Argument is short option, like `-s` */
-    else if (__match_str(&a, a, aend, opt_short_prefix, opt_short_prefix_len)) {
-        if (!(a < aend))
+    else if (__match_str(&a, a, aend, "-", 1)) {
+        if (__match_end(a, aend))
             return 0;   /* - */
         if (wildcard)
             return 1;
 
         /* Find in short options */
         o = optlist;
-        if (__match_str(&o, o, lopt, opt_short_prefix, opt_short_prefix_len)
-                && __match_chars_set(&a, a, aend, o, lopt-o, 1, lopt-o)
-                && __match_end(a, aend, 1))
+        if (__match_str(&o, o, lopt, "-", 1)
+            && __match_chars_set(&a, a, aend, o, lopt-o, 1, lopt-o)
+            && __match_end(a, aend))
             return 1;
     }
     return 0;
@@ -1019,8 +1001,6 @@ int cargv_text(
     const char **vals, cargv_len_t valc)
 {
     _str *v, *a;
-
-    memset((void *)vals, 0, valc * sizeof(const char *));
 
     v = vals;
     a = cargv->args;
@@ -1044,7 +1024,6 @@ int cargv_oneof(
     listend = list + strlen(list);
     seplen = strlen(sep);
 
-    memset((void *)vals, 0, valc * sizeof(*vals));
     val = vals;
     arg = cargv->args;
     while (val - vals < valc && arg < cargv->argend) {
@@ -1053,7 +1032,7 @@ int cargv_oneof(
         t = list;
         while (t < listend) {
             __unmatch_str(&tend, t, listend, sep, seplen);
-            if (__match_str(&a, a, aend, t, tend-t) && __match_end(a, aend, 1))
+            if (__match_str(&a, a, aend, t, tend-t) && __match_end(a, aend))
                 break;
             t = tend + seplen;
         }
@@ -1082,7 +1061,7 @@ int cargv_int(
         e = t + strlen(t);
         if ((r = __read_sint_dec(&n, &t, t, e)) == 0)
             break;
-        if (!__match_end(t, e, 1))
+        if (!__match_end(t, e))
             break;
         if (r < 0)
             return err_val_result(cargv, name, "integer", *a, r);
@@ -1109,7 +1088,7 @@ int cargv_uint(
         e = t + strlen(t);
         if ((r = __read_uint_dec(&n, &t, t, e)) == 0)
             break;
-        if (!__match_end(t, e, 1))
+        if (!__match_end(t, e))
             break;
         if (r < 0)
             return err_val_result(cargv, name, "unsigned integer", *a, r);
@@ -1139,7 +1118,7 @@ int cargv_date(
             && (r = __read_iso8601_Y(&d, &t, t, e)) == 0
             && (r = __read_iso8601_MD(&d, &t, t, e)) == 0)
             break;
-        if (!__match_end(t, e, 1))
+        if (!__match_end(t, e))
             break;
         if (r < 0)
             return err_val_result(cargv, name, "date", *a, r);
@@ -1171,8 +1150,8 @@ int cargv_time(
             && (rh = __read_iso8601_h(&h, &t, t, e)) == 0)
             break;
         if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
-            memcpy(&z, &_TZ_LOCAL, sizeof(z));
-        if (!__match_end(t, e, 1))
+            memcpy(&z, &_TZ_DEFAULT, sizeof(z));
+        if (!__match_end(t, e))
             break;
         if (rh < 0)
             return err_val_result(cargv, name, "time", *a, rh);
@@ -1204,7 +1183,7 @@ int cargv_timezone(
         e = t + strlen(t);
         if ((r = __read_iso8601_tz(&z, &t, t, e)) == 0)
             break;
-        if (!__match_end(t, e, 1))
+        if (!__match_end(t, e))
             break;
         if (r < 0)
             return err_val_result(cargv, name, "timezone", *a, r);
@@ -1242,36 +1221,36 @@ int cargv_datetime(
                 || (rh = __read_iso8601_hm(&h, &t, t, e)) != 0
                 || (rh = __read_iso8601_h(&h, &t, t, e)) != 0)) {
             if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
-                memcpy(&z, &_TZ_LOCAL, sizeof(z));
+                memcpy(&z, &_TZ_DEFAULT, sizeof(z));
         }
         /* <date> */
         else if ((rd = __read_iso8601_YMD(&d, &t, (t = *a), e)) != 0
                 || (rd = __read_iso8601_YM(&d, &t, t, e)) != 0
                 || (rd = __read_iso8601_MD(&d, &t, t, e)) != 0) {
-            memcpy(&h, &_HMS_NOW, sizeof(h));
-            memcpy(&z, &_TZ_LOCAL, sizeof(z));
+            memcpy(&h, &_HMS_DEFAULT, sizeof(h));
+            memcpy(&z, &_TZ_DEFAULT, sizeof(z));
         }
         /* <time>[tz] */
         else if ((rh = __read_iso8601_hms(&h, &t, (t = *a), e)) != 0
                  || (rh = __read_iso8601_hm(&h, &t, t, e)) != 0) {
-            memcpy(&d, &_TODAY, sizeof(d));
+            memcpy(&d, &_YMD_DEFAULT, sizeof(d));
             if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
-                memcpy(&z, &_TZ_LOCAL, sizeof(z));
+                memcpy(&z, &_TZ_DEFAULT, sizeof(z));
         }
         /* <hour><tz> */
         else if ((rh = __read_iso8601_h(&h, &t, t, e)) != 0
                  && (rz = __read_iso8601_tz(&z, &t, t, e)) != 0) {
-            memcpy(&d, &_TODAY, sizeof(d));
+            memcpy(&d, &_YMD_DEFAULT, sizeof(d));
         }
         /* <year> */
         else if ((rd = __read_iso8601_Y(&d, &t, (t = *a), e)) != 0) {
-            memcpy(&h, &_HMS_NOW, sizeof(h));
-            memcpy(&z, &_TZ_LOCAL, sizeof(z));
+            memcpy(&h, &_HMS_DEFAULT, sizeof(h));
+            memcpy(&z, &_TZ_DEFAULT, sizeof(z));
         }
         else
             break;
 
-        if (!__match_end(t, e, 1))
+        if (!__match_end(t, e))
             break;
         if (rd < 0)
             return err_val_result(cargv, name, "datetime", *a, rd);
@@ -1355,28 +1334,27 @@ enum cargv_err_t cargv_convert_localtime(
 }
 
 
-
 int cargv_degree(
     struct cargv_t *cargv,
     const char *name,
     struct cargv_degree_t *vals, cargv_len_t valc)
 {
     int r;
-    _degree *v, d;
+    _degree *v;
     _str *a, t, e;
 
     for (v = vals, a = cargv->args; v - vals < valc && a < cargv->argend;) {
         t = *a;
         e = t + strlen(t);
-        if ((r = read_degree_iso6709(&d, &t, t, e-t, 1)) == 0)
+        if ((r = __read_iso6709_degree(v, &t, t, e)) == 0)
             break;
-        // if (!__match_end(t, e, 1))
-        //     break;
+        if (!__match_end(t, e))
+            break;
         if (r < 0)
             return err_val_result(cargv, name, "degree", *a, r);
 
-        memcpy(v++, &d, sizeof(*v));
-        a++;
+        ++v;
+        ++a;
     }
     return (int)(v-vals);
 }
@@ -1387,29 +1365,29 @@ int cargv_geocoord(
     struct cargv_geocoord_t *vals, cargv_len_t valc)
 {
     int r;
-    _geocoord *v, g;
+    _geocoord *v;
     _str *a, t, e;
 
     for (v = vals, a = cargv->args; v - vals < valc && a < cargv->argend;) {
         t = *a;
         e = t + strlen(t);
-        if ((r = read_geocoord_iso6709(&g, &t, t, e-t, 0)) == 0)
+        if ((r = __read_iso6709_geocoord(v, &t, t, e)) == 0)
             break;
-        if (!__match_end(t, e, 1))
+        if (!__match_end(t, e))
             break;
         if (r < 0)
             return err_val_result(cargv, name, "geocoord", *a, r);
 
-        memcpy(v++, &g, sizeof(*v));
-        a++;
+        ++v;
+        ++a;
     }
     return (int)(v-vals);
 }
 
 
-double cargv_get_degree(const struct cargv_degree_t *val)
+_real cargv_get_degree(const struct cargv_degree_t *val)
 {
-    return (double)val->deg / 1E+6
-        + (double)val->min / 1E+6 / 60.0
-        + (double)val->sec / 1E+6 / 3600.0;
+    return (_real)val->degree / 1E+6
+        + (_real)val->minute / 1E+6 / 60.0
+        + (_real)val->second / 1E+6 / 3600.0;
 }
