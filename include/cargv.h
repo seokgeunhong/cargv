@@ -219,7 +219,11 @@ int cargv_oneof(
 
 /* Read signed integer value arguments.
 
-  [+-]<0-9>{1..}
+  [+-]<0-9.,_>{1..}
+
+- At least one digit is required.
+- `.`, `,`, or `_` may be used for group separator, like `123,456`.
+- Group separators may not be mixed. `1,234_567` is error.
 
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any values are not cargv_int_t.
@@ -235,7 +239,11 @@ int cargv_int(
 
 /* Read unsigned integer value arguments.
 
-  [+]<0-9>{1..}
+  [+]<0-9.,_>{1..}
+
+- At least one digit is required.
+- `.`, `,`, or `_` may be used for group separator, like `123,456`.
+- Group separators may not be mixed. `1,234_567` is error.
 
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any values are not cargv_uint_t.

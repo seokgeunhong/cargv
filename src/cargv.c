@@ -47,7 +47,7 @@ typedef struct cargv_geocoord_t   _geocoord;
 
 #define _SINT_MIN   CARGV_SINT_MIN
 #define _SINT_MAX   CARGV_SINT_MAX
-#define _UINT_MAX   CARGV_UINT_MAX
+#define _UI_MAX   CARGV_UINT_MAX
 
 
 /* power of 10 */
@@ -217,68 +217,119 @@ static int __match_chars_range(
     int minc, int maxc)
 {
     return __match_chars(&__match_char_range,
-        next, text, textend, pattern, patternlen,minc, maxc);
+        next, text, textend, pattern, patternlen, minc, maxc);
 }
 
-/* Read a number sign, `+` or `-`.
+/* Read a number sign.
 
-[out] return: Number of characters succesfully read.
-              0 if none found.
+  <+->
+
+[out] return: Number of characters succesfully read, 1 or 0.
 [out] val: -1 for `-`, 1 otherwise.
-[out] next: Points end of matched text. Untouched if no match found.
-[in] text, textend: Text to match.
 */
 static int __read_sign(_sint *val, _str *next, _str text, _str textend)
 {
-    _str t = text;
-
-    __match_chars_set(&t, t, textend, "+-", 2, 0, 1);
-    *val = (*text == '-') ? -1 : 1;
-    return (int)((*next = t) - text);
+    _str t;
+    if (__match_chars_set(&t, (t = text), textend, "-", 1, 0, 1) > 0)
+        *val = -1;
+    else {
+        __match_chars_set(&t, (t = text), textend, "+", 1, 0, 1);
+        *val = 1;
+    }
+    *next = t;
+    return (int)(*next - text);
 }
 
-/* Read a decimal integer, without any sign. [0-9]+
+/* Read a decimal digit.
 
-[out] return: Number of characters succesfully read.
-              0 if pattern not matched to a decimal number.
-              CARGV_VAL_OVERFLOW if value exceeds CARGV_UINT_MAX.
-[out] val: Read value. Untouched on failure.
-[out] next: Points end of matched text. Untouched if no match found.
-[in] text, textend: Text to match.
+  <0-9>
+
+[out] return: Number of characters succesfully read, 1 or 0.
+[out] val: Value from 0 to 9. Untouched on failure.
+*/
+static int __read_digit_dec(_uint *val, _str *next, _str text, _str textend)
+{
+    if (text < textend && __match_char_range(*text, "09", 2) > 0) {
+        *val = *text++ - '0';
+        *next = text;
+        return 1;
+    }
+    else
+        return 0;
+}
+
+/* Read a decimal integer, without any sign or separator.
+
+  <0-9>{..}
 */
 static int __read_dec(_uint *val, _str *next, _str text, _str textend)
 {
-    int r;
-    _str t = text, s;
-    _uint u;
+    _str t;
+    _uint u, d;
 
-    if (!((r = __match_chars_range(&t, t, textend, "09", 2, 0, 100)) != 0))
-        return 0;
+    t = text, u = 0;
+    while (t < textend) {
+        if (__read_digit_dec(&d, &t, t, textend) > 0) {
+            if (u < _UI_MAX/10 || (u == _UI_MAX/10 && d <= _UI_MAX%10)) {
+                u = u * 10 + d;
+            }
+            else {
+                *next = t;
+                return CARGV_VAL_OVERFLOW;
+            }
+        }
+        else
+            break;  /* end of match */
+    }
+    if (!(t > text))
+        return 0;  /* no digit */
 
     *next = t;
-    if (r < 0)
-        return r;
+    *val = u;
+    return (int)(*next - text);
+}
 
-    u = 0;
-    for (s = text; s < t; s++) {
-        if (u < _UINT_MAX / 10
-            || (u == _UINT_MAX / 10 && *s - '0' <= _UINT_MAX % 10))
-            u = u * 10 + (*s - '0');
+/* Read a decimal integer, without sign, with group separators.
+
+  <0-9.,_>{..}
+*/
+static int __read_dec_sep(_uint *val, _str *next, _str text, _str textend)
+{
+    _str t;
+    _uint u, d;
+    int l;
+    char sep;
+
+    t = text, u = 0, l = 0, sep = 0;
+    while (t < textend) {
+        if (__read_digit_dec(&d, &t, t, textend) > 0) {
+            if (u < _UI_MAX/10 || (u == _UI_MAX/10 && d <= _UI_MAX%10)) {
+                ++l;
+                u = u * 10 + d;
+            }
+            else {
+                *next = t;
+                return CARGV_VAL_OVERFLOW;
+            }
+        }
+        else if (sep && *t == sep)
+            ++t;
+        else if (!sep && __match_char_set(*t, ".,_", 3) > 0)
+            sep = *t++;
         else
-            return CARGV_VAL_OVERFLOW;
+            break;  /* end of match */
     }
+    if (l == 0)
+        return 0;  /* no digit */
+
+    *next = t;
     *val = u;
     return (int)(*next - text);
 }
 
 /* Read a signed decimal integer.
 
-[out] return: Number of characters succesfully read.
-              0 if none found.
-              CARGV_VAL_OVERFLOW if not in [CARGV_SINT_MIN,CARGV_SINT_MAX].
-[out] val: Read value. Untouched on failure.
-[out] next: Points end of matched text. Untouched if no match found.
-[in] text, textend: Text to match.
+  [+-]<0-9.,_>{..}
 */
 static int __read_sint_dec(_sint *val, _str *next, _str text, _str textend)
 {
@@ -287,11 +338,8 @@ static int __read_sint_dec(_sint *val, _str *next, _str text, _str textend)
     _sint sign;
     _uint u;
 
-    /* [+-]<0-9>{..} */
-    if (__read_sign(&sign, &t, (t = text), textend) >= 0
-        && (r = __read_dec(&u, &t, t, textend)) != 0) {
-    }
-    else
+    if (!(__read_sign(&sign, &t, (t = text), textend) >= 0
+          && (r = __read_dec_sep(&u, &t, t, textend)) != 0))
         return 0;
 
     *next = t;
@@ -317,12 +365,7 @@ static int __read_sint_dec(_sint *val, _str *next, _str text, _str textend)
 
 /* Read an unsigned decimal integer.
 
-[out] return: Number of characters succesfully read.
-              0 if none found.
-              CARGV_VAL_OVERFLOW if not in [0,CARGV_UINT_MAX].
-[out] val: Read value. Untouched on failure.
-[out] next: Points end of matched text. Untouched if no match found.
-[in] text, textend: Text to match.
+  [+]<0-9.,_>{..}
 */
 static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
 {
@@ -331,11 +374,8 @@ static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
     _sint sign;
     _uint u;
 
-    /* [+]<0-9>{..} */
-    if (__read_sign(&sign, &t, (t = text), textend) >= 0
-        && (r = __read_dec(&u, &t, t, textend)) != 0) {
-    }
-    else
+    if (!(__read_sign(&sign, &t, (t = text), textend) >= 0
+          && (r = __read_dec_sep(&u, &t, t, textend)) != 0))
         return 0;
 
     *next = t;

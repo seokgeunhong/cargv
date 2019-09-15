@@ -134,58 +134,73 @@ TEST_F(Test_cargv, oneof)
 
 TEST_F(Test_cargv, sint)
 {
-    static const char *args[] = { _name, "32", "-1", "+1000", "1a", "1", };
-    cargv_int_t val[4];
+    static const char *args[] = { _name,
+        "32", "-1", "+1000", "-0", "-_0_",
+        "9223372036854775807", "9,223,372,036,854,775,807",
+    };
+    static const cargv_int_t vals[] = {
+        32, -1, 1000, 0, 0,
+        INT64_C(9223372036854775807), INT64_C(9223372036854775807),
+    };
+    cargv_int_t a;
+    cargv_int_t const *v = vals;
+
+    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_int(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+        EXPECT_EQ(a, *v);
+        ++v;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
+}
+
+TEST_F(Test_cargv, int_error)
+{
+    static const char *args[] = { _name,
+        "1a", "-1,2.3", "+,", "++1"
+    };
+    cargv_int_t a;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], 32);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 4), 3);
-    EXPECT_EQ(val[0], 32);
-    EXPECT_EQ(val[1], -1);
-    EXPECT_EQ(val[2], 1000);
-    //EXPECT_EQ(val[3], 0);
-    EXPECT_EQ(cargv_shift(&cargv, 4), 4);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_int(&cargv, "TEST", &a, 1), 0);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
 TEST_F(Test_cargv, sint_overflow)
 {
     static const char *args[] = { _name,
-        "9223372036854775807", "9223372036854775808",
-        "-9223372036854775808", "-9223372036854775809",
+        "9223372036854775808",
+        "-9223372036854775809",
         "18446744073709551616",
     };
-    cargv_int_t val[1];
+    cargv_int_t a;
 
-    testing::internal::CaptureStderr();
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], INT64_C(9223372036854775807));
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], INT64_C(-9223372036854775807)-1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_int(&cargv, "TEST", &a, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
     testing::internal::GetCapturedStderr();
 }
 
 TEST_F(Test_cargv, uint)
 {
     static const char *args[] = { _name,
-        "32", "0", "32768", "18446744073709551615", };
+        "32", "0", "32768", "18446744073709551615",
+        "3,2", "0.", "_32__76_8__", "18,446,744,073,709,551,615",
+    };
     static const cargv_uint_t vals[] = {
+        32, 0, 32768, UINT64_C(18446744073709551615),
         32, 0, 32768, UINT64_C(18446744073709551615),
     };
     cargv_uint_t a;
@@ -205,7 +220,9 @@ TEST_F(Test_cargv, uint)
 
 TEST_F(Test_cargv, uint_error)
 {
-    static const char *args[] = { _name, "1a", };
+    static const char *args[] = { _name,
+        "1a", "1,2.3", ",", "...", "_._._.,"
+    };
     cargv_uint_t a;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
@@ -220,7 +237,8 @@ TEST_F(Test_cargv, uint_error)
 TEST_F(Test_cargv, uint_overflow)
 {
     static const char *args[] = { _name,
-        "18446744073709551616", "-100"
+        "18446744073709551616", "-100",
+        "18,446,744,073,709,551,616", "-_100"
     };
     cargv_uint_t a;
 
