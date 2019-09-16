@@ -135,11 +135,13 @@ TEST_F(Test_cargv, oneof)
 TEST_F(Test_cargv, sint)
 {
     static const char *args[] = { _name,
-        "32", "-1", "+1000",
+        "32", "-1", "+1000", "-0", "-_0_",
         "9223372036854775807", "-9223372036854775808",
+        "9,223,372,036,854,775,807", "-9_223_372_036_854_775_808",
     };
     static const cargv_int_t expected[] = {
-        32, -1, 1000,
+        32, -1, 1000, 0, 0,
+        INT64_C(9223372036854775807), -INT64_C(9223372036854775807)-1,
         INT64_C(9223372036854775807), -INT64_C(9223372036854775807)-1,
     };
     cargv_int_t v;
@@ -159,7 +161,9 @@ TEST_F(Test_cargv, sint)
 
 TEST_F(Test_cargv, sint_error)
 {
-    static const char *args[] = { _name, "+1a", };
+    static const char *args[] = { _name,
+        "1a", "-1,2.3", "+,", "++1"
+    };
     cargv_int_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
@@ -196,8 +200,11 @@ TEST_F(Test_cargv, sint_overflow)
 TEST_F(Test_cargv, uint)
 {
     static const char *args[] = { _name,
-        "32", "0", "32768", "18446744073709551615", };
+        "32", "0", "32768", "18446744073709551615",
+        "3,2", "0.", "_32__76_8__", "18,446,744,073,709,551,615",
+    };
     static const cargv_uint_t expected[] = {
+        32, 0, 32768, UINT64_C(18446744073709551615),
         32, 0, 32768, UINT64_C(18446744073709551615),
     };
     cargv_uint_t v;
@@ -217,7 +224,9 @@ TEST_F(Test_cargv, uint)
 
 TEST_F(Test_cargv, uint_error)
 {
-    static const char *args[] = { _name, "1a", };
+    static const char *args[] = { _name,
+        "1a", "1,2.3", ",", "...", "_._._.,"
+    };
     cargv_uint_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
@@ -234,7 +243,8 @@ TEST_F(Test_cargv, uint_error)
 TEST_F(Test_cargv, uint_overflow)
 {
     static const char *args[] = { _name,
-        "18446744073709551616", "-100"
+        "18446744073709551616", "-100",
+        "18,446,744,073,709,551,616", "-_100"
     };
     cargv_uint_t v;
 
