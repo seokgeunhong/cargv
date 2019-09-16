@@ -583,59 +583,74 @@ TEST_F(Test_cargv, convert_localtime_error)
 TEST_F(Test_cargv, degree)
 {
     static const char *args[] = { _name,
-        "-32", "+9103", "+32.3957", "-13239.5", "+0793333.33", "-0",
+        "+1", "-32", "-0", "+132", "+9103", "+32.3957", "-13239.5",
+        "+0793333.33", "-0793333.33",
     };
-    cargv_degree_t v[6];
+    static const cargv_degree_t vals[] = {
+        {1,0,0,0,0,0},
+        {-32,0,0,0,0,0},
+        {0,0,0,0,0,0},
+        {132,0,0,0,0,0},
+        {91,0,3,0,0,0},
+        {32,395700,0,0,0,0},
+        {-132,0,-39,-500000,0,0},
+        {79,0,33,0,33,330000},
+        {-79,-0,-33,-0,-33,-330000},
+    };
+    cargv_degree_t a;
+    const cargv_degree_t *v = vals;
 
+    ASSERT_EQ(_c(args)-1, _c(vals));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 6), 6);
-    EXPECT_EQ(v[0].degree, -32000000);
-    EXPECT_EQ(v[0].minute, 0);
-    EXPECT_EQ(v[0].second, 0);
-    EXPECT_EQ(v[1].degree, 91000000);
-    EXPECT_EQ(v[1].minute, 3000000);
-    EXPECT_EQ(v[1].second, 0);
-    EXPECT_EQ(v[2].degree, 32395700);
-    EXPECT_EQ(v[2].minute, 0);
-    EXPECT_EQ(v[2].second, 0);
-    EXPECT_EQ(v[3].degree, -132000000);
-    EXPECT_EQ(v[3].minute, -39500000);
-    EXPECT_EQ(v[3].second, 0);
-    EXPECT_EQ(v[4].degree, 79000000);
-    EXPECT_EQ(v[4].minute, 33000000);
-    EXPECT_EQ(v[4].second, 33330000);
-    EXPECT_EQ(v[5].degree, 0);
-    EXPECT_EQ(v[5].minute, 0);
-    EXPECT_EQ(v[5].second, 0);
-    EXPECT_EQ(cargv_shift(&cargv, 6), 6);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_degree(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+        EXPECT_EQ(a.degree, v->degree);
+        EXPECT_EQ(a.microdegree, v->microdegree);
+        EXPECT_EQ(a.minute, v->minute);
+        EXPECT_EQ(a.microminute, v->microminute);
+        EXPECT_EQ(a.second, v->second);
+        EXPECT_EQ(a.microsecond, v->microsecond);
+        ++v;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
-TEST_F(Test_cargv, degree_err)
+TEST_F(Test_cargv, degree_error)
 {
     static const char *args[] = { _name,
-        "-361", "+1163", "-112278.01", "13239.5", "0", "+720.12.12"
+        "0", "13239.5", "+72.12.12", "+720.12.12",
     };
-    cargv_degree_t v[1];
+    cargv_degree_t a;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), 0);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), 0);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_degree(&cargv, "DEG", v, 1), 0);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_degree(&cargv, "TEST", &a, 1), 0);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
+}
+
+TEST_F(Test_cargv, degree_overflow)
+{
+    static const char *args[] = { _name,
+        "-361", "+1163", "-112278,01",
+    };
+    cargv_degree_t a;
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_degree(&cargv, "TEST", &a, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
 TEST_F(Test_cargv, geocoord)
@@ -644,45 +659,68 @@ TEST_F(Test_cargv, geocoord)
         "-32.3957+13239.57/",
         "+62.3-0",
     };
-    cargv_geocoord_t v[5];
+    static const cargv_geocoord_t vals[] = {
+        {{-32,-395700,0,0,0,0},{132,0,39,570000,0,0}},
+        {{62,300000,0,0,0,0},{0,0,0,0,0,0}},
+    };
+    cargv_geocoord_t a;
+    const cargv_geocoord_t *v = vals;
 
+    ASSERT_EQ(_c(args)-1, _c(vals));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 2), 2);
-    EXPECT_EQ(v[0].latitude.degree, -32395700);
-    EXPECT_EQ(v[0].latitude.minute, 0);
-    EXPECT_EQ(v[0].latitude.second, 0);
-    EXPECT_EQ(v[0].longitude.degree, 132000000);
-    EXPECT_EQ(v[0].longitude.minute,  39570000);
-    EXPECT_EQ(v[0].longitude.second,  0);
-    EXPECT_EQ(v[1].latitude.degree, 62300000);
-    EXPECT_EQ(v[1].latitude.minute, 0);
-    EXPECT_EQ(v[1].latitude.second, 0);
-    EXPECT_EQ(v[1].longitude.degree, 0);
-    EXPECT_EQ(v[1].longitude.minute, 0);
-    EXPECT_EQ(v[1].longitude.second, 0);
-    EXPECT_EQ(cargv_shift(&cargv, 2), 2);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+        EXPECT_EQ(a.latitude.degree, v->latitude.degree);
+        EXPECT_EQ(a.latitude.microdegree, v->latitude.microdegree);
+        EXPECT_EQ(a.latitude.minute, v->latitude.minute);
+        EXPECT_EQ(a.latitude.microminute, v->latitude.microminute);
+        EXPECT_EQ(a.latitude.second, v->latitude.second);
+        EXPECT_EQ(a.latitude.microsecond, v->latitude.microsecond);
+        EXPECT_EQ(a.longitude.degree, v->longitude.degree);
+        EXPECT_EQ(a.longitude.microdegree, v->longitude.microdegree);
+        EXPECT_EQ(a.longitude.minute, v->longitude.minute);
+        EXPECT_EQ(a.longitude.microminute, v->longitude.microminute);
+        EXPECT_EQ(a.longitude.second, v->longitude.second);
+        EXPECT_EQ(a.longitude.microsecond, v->longitude.microsecond);
+        ++v;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
-TEST_F(Test_cargv, geocoord_err)
+TEST_F(Test_cargv, geocoord_error)
 {
     static const char *args[] = { _name,
-        "-1+1/?", "-1914141+0/", "+18.3-232.56", "+32.2838.334-0",
+        "-1/", "-1+1/?", "+32.2838.334-0",
     };
-    cargv_geocoord_t v[1];
+    cargv_geocoord_t a;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
-    EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), 0);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_geocoord(&cargv, "GEOCOORD", v, 1), 0);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &a, 1), 0);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
+}
+
+TEST_F(Test_cargv, geocoord_overflow)
+{
+    static const char *args[] = { _name,
+        "-1914141+0/", "+18.3-232.56",
+    };
+    cargv_geocoord_t a;
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &a, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }

@@ -101,9 +101,9 @@ extern const struct cargv_timezone_t *CARGV_TZ_SEOUL;
 
 /* Geocoord types */
 struct cargv_degree_t {
-    cargv_int_t degree;  /* ddd.dddddd */
-    cargv_int_t minute;  /*  mm.mmmmmm */
-    cargv_int_t second;  /*  ss.ssssss */
+    cargv_int_t degree, microdegree;  /* ddd.dddddd */
+    cargv_int_t minute, microminute;  /*  mm.mmmmmm */
+    cargv_int_t second, microsecond;  /*  ss.ssssss */
 };
 
 struct cargv_geocoord_t {

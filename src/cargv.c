@@ -801,55 +801,68 @@ static int __read_iso8601_h(_hms *val, _str *next, _str text, _str textend)
 static int __read_iso6709_degree(
     _degree *val, _str *next, _str text, _str textend)
 {
-    _str tn, tf;
+    _str t, tf;
     int rn, rf;
     _sint sign;
     _uint n, f;
-    _sint d, m, s;
+    _sint d, m, s, df, mf, sf;
 
-    /* <+->D[..3] */
-    if (!(__read_sign(&sign, &tn, (tn = text), textend) == 1
-          && (rn = __read_dec(&n, &tn, tn, textend)) > 0))
+    /* <+-> */
+    if (!(__read_sign(&sign, &t, (t = text), textend) == 1))
         return 0;
 
-    /* [<.,>D[..6]] */
-    if (!(__match_chars_set(&tf, (tf = tn), textend, ".", 1, 1, 1) == 1
-          && (rf = __read_dec(&f, &tf, tf, textend)) > 0)) {
-        tf = tn;
+    /* Integer part: d[..] */
+    if (!((rn = __read_dec(&n, &t, t, textend)) > 0))
+        return 0;
+
+    /* Fraction part: [<.,>d[..]] */
+    if (__match_chars_set(&tf, (tf = t), textend, ".,", 2, 1, 1) == 1
+        && (rf = __read_dec(&f, &tf, tf, textend)) > 0) {
+        t = tf;
+    }
+    else {
         rf = 0;
         f = 0;
     }
 
+    *next = t;
+
     /* D[..3][<.,>D[..6]] */
     if (rn >= 1 && rn <= 3 && rf <= 6) {
-        d = (_sint)n * 1000000 + f / __p10(rf-6) * __p10(6-rf);
-        m = 0;
-        s = 0;
-        val->minute = val->second = 0;
+        d = (_sint)n;
+        df = f / __p10(rf-6) * __p10(6-rf);
+        m = mf = 0;
+        s = sf = 0;
     }
     /* [D]DDMM[<.,>M[..4]] */
     else if (rn >= 4 && rn <= 5 && rf <= 4) {
-        d = (_sint)n / 100 * 1000000;
-        m = (_sint)n % 100 * 1000000 + f / __p10(rf-4) * __p10(4-rf) * 100;
-        s = 0;
+        d = (_sint)n / 100;
+        df = 0;
+        m = (_sint)n % 100;
+        mf = f / __p10(rf-4) * __p10(4-rf);
+        s = sf = 0;
     }
     /* [D]DDMMSS[<.,>S[..2]] */
     else if (rn >= 6 && rn <= 7 && rf <= 2) {
-        d = (_sint)n / 10000 * 1000000;
-        m = (_sint)n % 10000 / 100 * 1000000;
-        s = (_sint)n % 100 * 1000000 + f / __p10(rf-2) * __p10(2-rf) * 10000;
+        d = (_sint)n / 10000;
+        df = 0;
+        m = (_sint)n / 100 % 100;
+        mf = 0;
+        s = (_sint)n % 100;
+        sf = f / __p10(rf-2) * __p10(2-rf);
     }
     else
-        return 0;
+        return CARGV_VAL_OVERFLOW;
 
-    *next = tf;
-
-    if (!(d <= 360*1000000 && m <= 60*1000000 && s <= 60*1000000))
+    if (!(d <= 360 && m <= 60 && s <= 60))
         return CARGV_VAL_OVERFLOW;
 
     val->degree = sign * d;
     val->minute = sign * m;
     val->second = sign * s;
+    val->microdegree = sign * df;
+    val->microminute = sign * mf * 100;
+    val->microsecond = sign * sf * 10000;
     return (int)(*next - text);
 }
 
@@ -879,9 +892,12 @@ static int __read_iso6709_geocoord(
 
     *next = t;
 
-    if (ry < 0 || rx < 0
-        || !(y.degree >= -90*1000000 && y.degree <= 90*1000000)
-        || !(x.degree >= -180*1000000 && x.degree <= 180*1000000))
+    if (ry < 0)
+        return ry;
+    if (rx < 0)
+        return ry;
+    if (!(y.degree >= -90 && y.degree <= 90
+          && x.degree >= -180 && x.degree <= 180))
         return CARGV_VAL_OVERFLOW;
 
     memcpy(&val->latitude, &y, sizeof(val->latitude));
