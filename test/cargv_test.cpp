@@ -134,71 +134,83 @@ TEST_F(Test_cargv, oneof)
 
 TEST_F(Test_cargv, sint)
 {
-    static const char *args[] = { _name, "32", "-1", "+1000", "1a", "1", };
-    cargv_int_t val[4];
+    static const char *args[] = { _name,
+        "32", "-1", "+1000",
+        "9223372036854775807", "-9223372036854775808",
+    };
+    static const cargv_int_t expected[] = {
+        32, -1, 1000,
+        INT64_C(9223372036854775807), -INT64_C(9223372036854775807)-1,
+    };
+    cargv_int_t v;
+    cargv_int_t const *e = expected;
+
+    ASSERT_EQ(_c(args)-1, _c(expected));
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_int(&cargv, "TEST", &v, 1), 1);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+        EXPECT_EQ(v, *e);
+        ++e;
+    }
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
+}
+
+TEST_F(Test_cargv, sint_error)
+{
+    static const char *args[] = { _name, "+1a", };
+    cargv_int_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], 32);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 4), 3);
-    EXPECT_EQ(val[0], 32);
-    EXPECT_EQ(val[1], -1);
-    EXPECT_EQ(val[2], 1000);
-    //EXPECT_EQ(val[3], 0);
-    EXPECT_EQ(cargv_shift(&cargv, 4), 4);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_int(&cargv, "TEST", &v, 1), 0);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
 TEST_F(Test_cargv, sint_overflow)
 {
     static const char *args[] = { _name,
-        "9223372036854775807", "9223372036854775808",
-        "-9223372036854775808", "-9223372036854775809",
+        "9223372036854775808",
+        "-9223372036854775809",
         "18446744073709551616",
     };
-    cargv_int_t val[1];
+    cargv_int_t v;
 
-    testing::internal::CaptureStderr();
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], INT64_C(9223372036854775807));
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), 1);
-    EXPECT_EQ(val[0], INT64_C(-9223372036854775807)-1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_int(&cargv, "INT", val, 1), CARGV_VAL_OVERFLOW);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_int(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
 TEST_F(Test_cargv, uint)
 {
     static const char *args[] = { _name,
         "32", "0", "32768", "18446744073709551615", };
-    static const cargv_uint_t vals[] = {
+    static const cargv_uint_t expected[] = {
         32, 0, 32768, UINT64_C(18446744073709551615),
     };
-    cargv_uint_t a;
-    cargv_uint_t const *v = vals;
+    cargv_uint_t v;
+    cargv_uint_t const *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_uint(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_uint(&cargv, "TEST", &v, 1), 1);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        EXPECT_EQ(a, *v);
-        ++v;
+        EXPECT_EQ(v, *e);
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
@@ -206,14 +218,16 @@ TEST_F(Test_cargv, uint)
 TEST_F(Test_cargv, uint_error)
 {
     static const char *args[] = { _name, "1a", };
-    cargv_uint_t a;
+    cargv_uint_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_uint(&cargv, "TEST", &a, 1), 0);
+        EXPECT_EQ(cargv_uint(&cargv, "TEST", &v, 1), 0);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     }
+    testing::internal::GetCapturedStderr();
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
@@ -222,17 +236,17 @@ TEST_F(Test_cargv, uint_overflow)
     static const char *args[] = { _name,
         "18446744073709551616", "-100"
     };
-    cargv_uint_t a;
+    cargv_uint_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_uint(&cargv, "TEST", &a, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_uint(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     }
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
 TEST_F(Test_cargv, date)
@@ -243,25 +257,25 @@ TEST_F(Test_cargv, date)
         "+2019", "0000", "0", "-100", "1",
         "--0102", "--02-03", "--04/05",
     };
-    cargv_date_t vals[] = {
+    static const cargv_date_t expected[] = {
         {1010,10,10}, {1976,6,17}, {1976,6,17}, {-45,1,23},
         {-1010,1,0}, {1001,1,0}, {-100,2,0}, {1,2,3},
         {2019,0,0}, {0,0,0}, {0,0,0}, {-100,0,0}, {1,0,0},
         {CARGV_YEAR_DEFAULT,1,2}, {CARGV_YEAR_DEFAULT,2,3}, {CARGV_YEAR_DEFAULT,4,5},
     };
-    cargv_date_t a;
-    cargv_date_t *v = vals;
+    cargv_date_t v;
+    const cargv_date_t *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_date(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_date(&cargv, "TEST", &v, 1), 1);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        EXPECT_EQ(a.year, v->year);
-        EXPECT_EQ(a.month, v->month);
-        EXPECT_EQ(a.day, v->day);
-        ++v;
+        EXPECT_EQ(v.year, e->year);
+        EXPECT_EQ(v.month, e->month);
+        EXPECT_EQ(v.day, e->day);
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
@@ -274,33 +288,41 @@ TEST_F(Test_cargv, date_error)
         "2018-01-001",  // >2 digits for day
         "2018-11--01",  // 2 `-`s
         "2018+02-29",   // wrong character `+`
-        "2018-0a-29",   // wrong character `a`
+        "2018-0a-29",   // wrong character `v`
         "201802-29",    // >4 digits for year
         "201811",       // YYYYMM is not allowed
         "10000-12-24",  // >4 digits for year
-        "2018-13-01", "2018-02-29", "2019-00-01", "2019-12-00",
-        "---19", "--19-03", "--+10-12",
+        "---19", "--+10-12",
     };
-    static const int results[] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-        0, CARGV_VAL_OVERFLOW, 0,
-    };
-    cargv_date_t a;
-    const int *r = results;
+    cargv_date_t v;
 
-    testing::internal::CaptureStderr();
-    ASSERT_EQ(_c(args)-1, _c(results));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_date(&cargv, "TEST", &a, 1), *r);
+        EXPECT_EQ(cargv_date(&cargv, "TEST", &v, 1), 0);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        ++r;
     }
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, date_overflow)
+{
+    static const char *args[] = { _name,
+        "2018-13-01", "2018-02-29", "2019-00-01", "2019-12-00", "--19-03",
+    };
+    cargv_date_t v;
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_date(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
 
 TEST_F(Test_cargv, time)
@@ -309,7 +331,7 @@ TEST_F(Test_cargv, time)
         "0", "4", "0:0", "12:34", "24:00", "14:59:27",
         "0Z", "4Z", "00:00+00", "24:00+1", "14:59:27-9", "23:59-09:20",
     };
-    static const cargv_time_t vals[] = {
+    static const cargv_time_t expected[] = {
         {0,0,0,0,*CARGV_TZ_LOCAL},
         {4,0,0,0,*CARGV_TZ_LOCAL},
         {0,0,0,0,*CARGV_TZ_LOCAL},
@@ -323,23 +345,22 @@ TEST_F(Test_cargv, time)
         {14,59,27,0,{-9,0}},
         {23,59,0,0,{-9,-20}},
     };
-    cargv_time_t a;
-    cargv_time_t const *v = vals;
+    cargv_time_t v;
+    cargv_time_t const *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_time(&cargv, "TEST", &a, 1), 1);
-        EXPECT_EQ(a.hour, v->hour);
-        EXPECT_EQ(a.minute, v->minute);
-        EXPECT_EQ(a.second, v->second);
-        EXPECT_EQ(a.milisecond, v->milisecond);
-        //EXPECT_EQ(a.tz.sign, v->tz.sign);
-        EXPECT_EQ(a.tz.hour, v->tz.hour);
-        EXPECT_EQ(a.tz.minute, v->tz.minute);
+        EXPECT_EQ(cargv_time(&cargv, "TEST", &v, 1), 1);
+        EXPECT_EQ(v.hour, e->hour);
+        EXPECT_EQ(v.minute, e->minute);
+        EXPECT_EQ(v.second, e->second);
+        EXPECT_EQ(v.milisecond, e->milisecond);
+        EXPECT_EQ(v.tz.hour, e->tz.hour);
+        EXPECT_EQ(v.tz.minute, e->tz.minute);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        ++v;
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
@@ -350,28 +371,36 @@ TEST_F(Test_cargv, time_error)
         "+2:00Z", "-2:00Z",  // +- not allowed
         "123:00Z", "12:345Z", "12:34:567Z", "12:34:Z", "12:34:56:Z",
         "12:", "12:34:", "12:34:56:", "12/34",
-        "12-34", "24:01Z", "25:00Z", "0:60Z", "01:02:60Z",  //Overflow
     };
-    static const int results[] = {
-        0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-    };
-    cargv_time_t a;
-    int const *r = results;
+    cargv_time_t v;
 
-    testing::internal::CaptureStderr();
-    ASSERT_EQ(_c(args)-1, _c(results));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_time(&cargv, "TEST", &a, 1), *r);
+        EXPECT_EQ(cargv_time(&cargv, "TEST", &v, 1), 0);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        ++r;
     }
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, time_overflow)
+{
+    static const char *args[] = { _name,
+        "12-34", "24:01Z", "25:00Z", "0:60Z", "01:02:60Z",
+    };
+    cargv_time_t v;
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_time(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
 
 TEST_F(Test_cargv, timezone)
@@ -379,22 +408,21 @@ TEST_F(Test_cargv, timezone)
     static const char *args[] = { _name,
         "Z", "+00", "+1", "+09:20", "-9:3",
     };
-    const cargv_timezone_t vals[] = {
+    const cargv_timezone_t expected[] = {
         *CARGV_UTC, *CARGV_UTC, {1,0}, {9,20}, {-9,-3},
     };
-    cargv_timezone_t a;
-    cargv_timezone_t const *v = vals;
+    cargv_timezone_t v;
+    cargv_timezone_t const *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_timezone(&cargv, "TEST", &a, 1), 1);
-        //EXPECT_EQ(a.sign, v->sign);
-        EXPECT_EQ(a.hour, v->hour);
-        EXPECT_EQ(a.minute, v->minute);
+        EXPECT_EQ(cargv_timezone(&cargv, "TEST", &v, 1), 1);
+        EXPECT_EQ(v.hour, e->hour);
+        EXPECT_EQ(v.minute, e->minute);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        ++v;
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
@@ -404,27 +432,36 @@ TEST_F(Test_cargv, timezone_error)
     static const char *args[] = { _name,
         "z", "+", "-", "+001:00", "+01:000",
         "+200",  // needs 4 digits.
-        "+13", "+1201", "-13", "-1201", "-00:60",
     };
-    static const int results[] = {
-        0, 0, 0, 0, 0, 0,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-    };
-    cargv_timezone_t a;
-    int const *r = results;
+    cargv_timezone_t v;
 
-    testing::internal::CaptureStderr();
-    ASSERT_EQ(_c(args)-1, _c(results));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_timezone(&cargv, "TEST", &a, 1), *r);
+        EXPECT_EQ(cargv_timezone(&cargv, "TEST", &v, 1), 0);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        ++r;
     }
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, timezone_overflow)
+{
+    static const char *args[] = { _name,
+        "+13", "+1201", "-13", "-1201", "-00:60",
+    };
+    cargv_timezone_t v;
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_timezone(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
 
 TEST_F(Test_cargv, datetime)
@@ -444,7 +481,7 @@ TEST_F(Test_cargv, datetime)
         "10Z",
         "23:59:59",
     };
-    static const cargv_datetime_t vals[] = {
+    static const cargv_datetime_t expected[] = {
         {1976,6,17,8,0,0,0,{9,30}},
         {45,1,23,1,2,3,0,*CARGV_UTC},
         {45,1,23,1,2,3,0,*CARGV_TZ_LOCAL},
@@ -459,29 +496,30 @@ TEST_F(Test_cargv, datetime)
         {CARGV_YEAR_DEFAULT,4,5,23,59,59,0,{-9,-20}},
         {10,0,0,CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,CARGV_SECOND_DEFAULT,
          CARGV_MILISECOND_DEFAULT,*CARGV_TZ_LOCAL},
-        {CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,10,0,0,0,*CARGV_UTC},
-        {CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,23,59,59,0,*CARGV_TZ_LOCAL},
+        {CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,10,0,0,0,
+         *CARGV_UTC},
+        {CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT,23,59,59,0,
+         *CARGV_TZ_LOCAL},
     };
-    cargv_datetime_t a;
-    const cargv_datetime_t *v = vals;
+    cargv_datetime_t v;
+    const cargv_datetime_t *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_datetime(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_datetime(&cargv, "TEST", &v, 1), 1);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        EXPECT_EQ(a.year, v->year);
-        EXPECT_EQ(a.month, v->month);
-        EXPECT_EQ(a.day, v->day);
-        EXPECT_EQ(a.hour, v->hour);
-        EXPECT_EQ(a.minute, v->minute);
-        EXPECT_EQ(a.second, v->second);
-        EXPECT_EQ(a.milisecond, v->milisecond);
-        //EXPECT_EQ(a.tz.sign, v->tz.sign);
-        EXPECT_EQ(a.tz.hour, v->tz.hour);
-        EXPECT_EQ(a.tz.minute, v->tz.minute);
-        ++v;
+        EXPECT_EQ(v.year, e->year);
+        EXPECT_EQ(v.month, e->month);
+        EXPECT_EQ(v.day, e->day);
+        EXPECT_EQ(v.hour, e->hour);
+        EXPECT_EQ(v.minute, e->minute);
+        EXPECT_EQ(v.second, e->second);
+        EXPECT_EQ(v.milisecond, e->milisecond);
+        EXPECT_EQ(v.tz.hour, e->tz.hour);
+        EXPECT_EQ(v.tz.minute, e->tz.minute);
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
@@ -497,30 +535,39 @@ TEST_F(Test_cargv, datetime_error)
         "T08:00+9:30",
         "+9:30",
         "10000",
+    };
+    cargv_datetime_t v;
+
+    ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
+    EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
+    while (cargv_len(&cargv) > 0) {
+        EXPECT_EQ(cargv_datetime(&cargv, "TEST", &v, 1), 0);
+        EXPECT_EQ(cargv_shift(&cargv, 1), 1);
+    }
+    testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
+}
+
+TEST_F(Test_cargv, datetime_overflow)
+{
+    static const char *args[] = { _name,
         "2019-13-23",
         "25:00+9:30",
         "+1976-13-17T08:00+9:30",
         "+2019-2-29T08:00+9:30",
     };
-    static const int results[] = {
-        0, 0, 0, 0, 0, 0, 0, 0,
-        CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW, CARGV_VAL_OVERFLOW,
-        CARGV_VAL_OVERFLOW,
-    };
-    cargv_datetime_t a;
-    int const *r = results;
+    cargv_datetime_t v;
 
-    testing::internal::CaptureStderr();
-    ASSERT_EQ(_c(args)-1, _c(results));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
+    testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_datetime(&cargv, "TEST", &a, 1), *r);
+        EXPECT_EQ(cargv_datetime(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        ++r;
     }
-    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
     testing::internal::GetCapturedStderr();
+    EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
 
 TEST_F(Test_cargv, convert_localtime)
@@ -561,13 +608,12 @@ TEST_F(Test_cargv, convert_localtime)
         EXPECT_EQ(v.minute, d->minute);
         EXPECT_EQ(v.second, d->second);
         EXPECT_EQ(v.milisecond, d->milisecond);
-        //EXPECT_EQ(v.tz.sign, d->tz.sign);
         EXPECT_EQ(v.tz.hour, d->tz.hour);
         EXPECT_EQ(v.tz.minute, d->tz.minute);
     }
 }
 
-TEST_F(Test_cargv, convert_localtime_error)
+TEST_F(Test_cargv, convert_localtime_overflow)
 {
     static const cargv_datetime_t srcs[] = {
         {-9999,1,1,4,0,0,0,{+9,0}},
@@ -576,7 +622,8 @@ TEST_F(Test_cargv, convert_localtime_error)
     cargv_datetime_t v;
 
     for (cargv_datetime_t const *s = srcs; s - srcs < _c(srcs); ++s) {
-        EXPECT_EQ(cargv_convert_localtime(&v, s, CARGV_UTC), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_convert_localtime(&v, s, CARGV_UTC),
+                  CARGV_VAL_OVERFLOW);
     }
 }
 
@@ -586,7 +633,7 @@ TEST_F(Test_cargv, degree)
         "+1", "-32", "-0", "+132", "+9103", "+32.3957", "-13239.5",
         "+0793333.33", "-0793333.33",
     };
-    static const cargv_degree_t vals[] = {
+    static const cargv_degree_t expected[] = {
         {1,0,0,0,0,0},
         {-32,0,0,0,0,0},
         {0,0,0,0,0,0},
@@ -597,22 +644,22 @@ TEST_F(Test_cargv, degree)
         {79,0,33,0,33,330000},
         {-79,-0,-33,-0,-33,-330000},
     };
-    cargv_degree_t a;
-    const cargv_degree_t *v = vals;
+    cargv_degree_t v;
+    const cargv_degree_t *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_degree(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_degree(&cargv, "TEST", &v, 1), 1);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        EXPECT_EQ(a.degree, v->degree);
-        EXPECT_EQ(a.microdegree, v->microdegree);
-        EXPECT_EQ(a.minute, v->minute);
-        EXPECT_EQ(a.microminute, v->microminute);
-        EXPECT_EQ(a.second, v->second);
-        EXPECT_EQ(a.microsecond, v->microsecond);
-        ++v;
+        EXPECT_EQ(v.degree, e->degree);
+        EXPECT_EQ(v.microdegree, e->microdegree);
+        EXPECT_EQ(v.minute, e->minute);
+        EXPECT_EQ(v.microminute, e->microminute);
+        EXPECT_EQ(v.second, e->second);
+        EXPECT_EQ(v.microsecond, e->microsecond);
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
@@ -622,13 +669,13 @@ TEST_F(Test_cargv, degree_error)
     static const char *args[] = { _name,
         "0", "13239.5", "+72.12.12", "+720.12.12",
     };
-    cargv_degree_t a;
+    cargv_degree_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_degree(&cargv, "TEST", &a, 1), 0);
+        EXPECT_EQ(cargv_degree(&cargv, "TEST", &v, 1), 0);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     }
     testing::internal::GetCapturedStderr();
@@ -640,13 +687,13 @@ TEST_F(Test_cargv, degree_overflow)
     static const char *args[] = { _name,
         "-361", "+1163", "-112278,01",
     };
-    cargv_degree_t a;
+    cargv_degree_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_degree(&cargv, "TEST", &a, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_degree(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     }
     testing::internal::GetCapturedStderr();
@@ -659,32 +706,32 @@ TEST_F(Test_cargv, geocoord)
         "-32.3957+13239.57/",
         "+62.3-0",
     };
-    static const cargv_geocoord_t vals[] = {
+    static const cargv_geocoord_t expected[] = {
         {{-32,-395700,0,0,0,0},{132,0,39,570000,0,0}},
         {{62,300000,0,0,0,0},{0,0,0,0,0,0}},
     };
-    cargv_geocoord_t a;
-    const cargv_geocoord_t *v = vals;
+    cargv_geocoord_t v;
+    const cargv_geocoord_t *e = expected;
 
-    ASSERT_EQ(_c(args)-1, _c(vals));
+    ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &a, 1), 1);
+        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &v, 1), 1);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
-        EXPECT_EQ(a.latitude.degree, v->latitude.degree);
-        EXPECT_EQ(a.latitude.microdegree, v->latitude.microdegree);
-        EXPECT_EQ(a.latitude.minute, v->latitude.minute);
-        EXPECT_EQ(a.latitude.microminute, v->latitude.microminute);
-        EXPECT_EQ(a.latitude.second, v->latitude.second);
-        EXPECT_EQ(a.latitude.microsecond, v->latitude.microsecond);
-        EXPECT_EQ(a.longitude.degree, v->longitude.degree);
-        EXPECT_EQ(a.longitude.microdegree, v->longitude.microdegree);
-        EXPECT_EQ(a.longitude.minute, v->longitude.minute);
-        EXPECT_EQ(a.longitude.microminute, v->longitude.microminute);
-        EXPECT_EQ(a.longitude.second, v->longitude.second);
-        EXPECT_EQ(a.longitude.microsecond, v->longitude.microsecond);
-        ++v;
+        EXPECT_EQ(v.latitude.degree, e->latitude.degree);
+        EXPECT_EQ(v.latitude.microdegree, e->latitude.microdegree);
+        EXPECT_EQ(v.latitude.minute, e->latitude.minute);
+        EXPECT_EQ(v.latitude.microminute, e->latitude.microminute);
+        EXPECT_EQ(v.latitude.second, e->latitude.second);
+        EXPECT_EQ(v.latitude.microsecond, e->latitude.microsecond);
+        EXPECT_EQ(v.longitude.degree, e->longitude.degree);
+        EXPECT_EQ(v.longitude.microdegree, e->longitude.microdegree);
+        EXPECT_EQ(v.longitude.minute, e->longitude.minute);
+        EXPECT_EQ(v.longitude.microminute, e->longitude.microminute);
+        EXPECT_EQ(v.longitude.second, e->longitude.second);
+        EXPECT_EQ(v.longitude.microsecond, e->longitude.microsecond);
+        ++e;
     }
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
@@ -694,13 +741,13 @@ TEST_F(Test_cargv, geocoord_error)
     static const char *args[] = { _name,
         "-1/", "-1+1/?", "+32.2838.334-0",
     };
-    cargv_geocoord_t a;
+    cargv_geocoord_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &a, 1), 0);
+        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &v, 1), 0);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     }
     testing::internal::GetCapturedStderr();
@@ -712,13 +759,13 @@ TEST_F(Test_cargv, geocoord_overflow)
     static const char *args[] = { _name,
         "-1914141+0/", "+18.3-232.56",
     };
-    cargv_geocoord_t a;
+    cargv_geocoord_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     testing::internal::CaptureStderr();
     while (cargv_len(&cargv) > 0) {
-        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &a, 1), CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_geocoord(&cargv, "TEST", &v, 1), CARGV_VAL_OVERFLOW);
         EXPECT_EQ(cargv_shift(&cargv, 1), 1);
     }
     testing::internal::GetCapturedStderr();
