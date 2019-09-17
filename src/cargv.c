@@ -1443,7 +1443,8 @@ int cargv_geocoord(
 
 _real cargv_get_degree(const struct cargv_degree_t *val)
 {
-    return (_real)val->degree / 1E+6
-        + (_real)val->minute / 1E+6 / 60.0
-        + (_real)val->second / 1E+6 / 3600.0;
+    return (_real)val->degree + (_real)val->microdegree / 1E+6
+        + ((_real)val->minute + (_real)val->microminute / 1E+6) / 60.0
+        + ((_real)val->second + (_real)val->microsecond / 1E+6) / 3600.0;
 }
+
