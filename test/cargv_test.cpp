@@ -580,7 +580,7 @@ TEST_F(Test_cargv, datetime_overflow)
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);
 }
 
-TEST_F(Test_cargv, convert_localtime)
+TEST_F(Test_cargv, local_datetime)
 {
     static const cargv_datetime_t srcs[] = {
         {1976,6,17,8,10,0,0,{9,30}},
@@ -610,7 +610,7 @@ TEST_F(Test_cargv, convert_localtime)
     for (cargv_datetime_t const *s = srcs, *d = dsts;
          s - srcs < _c(srcs);
          ++s, ++d) {
-        EXPECT_EQ(cargv_convert_localtime(&v, s, &d->tz), CARGV_OK);
+        EXPECT_EQ(cargv_local_datetime(&v, s, &d->tz), CARGV_OK);
         EXPECT_EQ(v.year, d->year);
         EXPECT_EQ(v.month, d->month);
         EXPECT_EQ(v.day, d->day);
@@ -632,8 +632,43 @@ TEST_F(Test_cargv, convert_localtime_overflow)
     cargv_datetime_t v;
 
     for (cargv_datetime_t const *s = srcs; s - srcs < _c(srcs); ++s) {
-        EXPECT_EQ(cargv_convert_localtime(&v, s, CARGV_UTC),
-                  CARGV_VAL_OVERFLOW);
+        EXPECT_EQ(cargv_local_datetime(&v, s, CARGV_UTC), CARGV_VAL_OVERFLOW);
+    }
+}
+
+TEST_F(Test_cargv, local_time)
+{
+    static const cargv_time_t srcs[] = {
+        {8,10,0,0,{9,30}},
+        {8,10,0,0,{9,30}},
+        {23,59,0,0,{-12,0}},
+        {12,0,0,0,{12,0}},
+        {12,0,0,0,{-12,0}},
+        {8,10,0,0,{9,30}},
+        {18,40,0,0,{-9,-30}},
+    };
+    static const cargv_time_t dsts[] = {
+        {-2,40,0,0,*CARGV_UTC},
+        {-11,10,0,0,{-9,-30}},
+        {47,59,0,0,{12,0}},
+        {-12,0,0,0,{-12,0}},
+        {36,0,0,0,{12,0}},
+        {-2,40,0,0,*CARGV_UTC},
+        {28,10,0,0,*CARGV_UTC},
+    };
+    cargv_time_t v;
+
+    ASSERT_EQ(_c(srcs), _c(dsts));
+    for (cargv_time_t const *s = srcs, *d = dsts;
+         s - srcs < _c(srcs);
+         ++s, ++d) {
+        EXPECT_EQ(cargv_local_time(&v, s, &d->tz), CARGV_OK);
+        EXPECT_EQ(v.hour, d->hour);
+        EXPECT_EQ(v.minute, d->minute);
+        EXPECT_EQ(v.second, d->second);
+        EXPECT_EQ(v.milisecond, d->milisecond);
+        EXPECT_EQ(v.tz.hour, d->tz.hour);
+        EXPECT_EQ(v.tz.minute, d->tz.minute);
     }
 }
 

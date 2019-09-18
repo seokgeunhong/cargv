@@ -35,10 +35,10 @@ typedef cargv_uint_t              _uint;
 typedef cargv_real_t              _real;
 typedef struct cargv_date_t       _ymd;
 typedef struct _hms_t {
-    _uint hour;    /* 0..24 */
-    _uint minute;  /* 0..59 */
-    _uint second;  /* 0..59 */
-    _uint milisecond;  /* 0..999 */
+    _sint hour;    /* -12..36 */
+    _sint minute;  /* 0..59 */
+    _sint second;  /* 0..59 */
+    _sint milisecond;  /* 0..999 */
 } _hms;
 typedef struct cargv_timezone_t   _tz;
 typedef struct cargv_datetime_t   _datetime;
@@ -427,21 +427,21 @@ const struct cargv_timezone_t *CARGV_UTC = &_UTC;
 const struct cargv_timezone_t *CARGV_TZ_SEOUL = &_TZ_SEOUL;
 
 /* return 1 if the month is leap month, otherwise 0. */
-static int __leap(_sint year, _uint month)
+static _sint __leap(_sint year, _sint month)
 {
     return month == 2 && ((!(year % 4) && (year % 100)) || !(year % 400));
 }
 
-static int __days_of_month_this_year(_uint month)
+static _sint __days_of_month_this_year(_sint month)
 {
-    static const int days_of_month[] = {
+    static const _sint days_of_month[] = {
         0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
     return days_of_month[month];
 }
-static int __days_of_month(_sint year, _uint month)
+static _sint __days_of_month(_sint year, _sint month)
 {
-    static const int days_of_month[] = {
+    static const _sint days_of_month[] = {
         0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
     return days_of_month[month] + __leap(year, month);
@@ -460,24 +460,23 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign, y;
-    _uint m, d, n;
+    _sint sign;
+    _uint y, m, d, n;
 
     /* [+-]YYYYMMDD */
     if (__read_sign(&sign, &t, (t = text), textend) >= 0
         && __read_dec(&n, &t, t, textend) == 8) {
-        y = (_sint)n / 10000 * sign;
+        y = n / 10000;
         m = (n % 10000) / 100;
         d = n % 100;
     }
     /* [+-]Y[..4]<-/>[M]M<-/>[D]D */
     else if (__read_sign(&sign, &t, (t = text), textend) >= 0
-             && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4
+             && (r = __read_dec(&y, &t, t, textend)) > 0 && r <= 4
              && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
              && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2
              && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
              && (r = __read_dec(&d, &t, t, textend)) > 0 && r <= 2) {
-        y = (_sint)n * sign;;
     }
     else
         return 0;
@@ -485,14 +484,14 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
     *next = t;
 
     /* -9999-1-1..+9999-12-31 */
-    if (!(y >= -9999 && y <= 9999
+    if (!(y <= 9999
           && m > 0 && m <= 12
           && d > 0 && d <= __days_of_month(y, m)))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = y;
-    val->month = m;
-    val->day = d;
+    val->year = (_sint)y * sign;
+    val->month = (_sint)m;
+    val->day = (_sint)d;
     return (int)(*next - text);
 }
 
@@ -509,15 +508,14 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign, y;
-    _uint m, n;
+    _sint sign;
+    _uint y, m, n;
 
     /* [+-]Y[..4]<-/>[M]M */
     if (__read_sign(&sign, &t, (t = text), textend) >= 0
-        && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4
+        && (r = __read_dec(&y, &t, t, textend)) > 0 && r <= 4
         && __match_chars_set(&t, t, textend, "-/", 2, 1, 1) == 1
         && (r = __read_dec(&m, &t, t, textend)) > 0 && r <= 2) {
-        y = (_sint)n * sign;
     }
     else
         return 0;
@@ -525,11 +523,11 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
     *next = t;
 
     /* -9999-01..+9999-12 */
-    if (!(y >= -9999 && y <= 9999 && m > 0 && m <= 12))
+    if (!(y <= 9999 && m > 0 && m <= 12))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = y;
-    val->month = m;
+    val->year = (_sint)y * sign;
+    val->month = (_sint)m;
     val->day = CARGV_DAY_DEFAULT;
     return (int)(*next - text);
 }
@@ -547,13 +545,12 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign, y;
-    _uint n;
+    _sint sign;
+    _uint y;
 
     /* [+-]Y[..4] */
     if (__read_sign(&sign, &t, (t = text), textend) >= 0
-        && (r = __read_dec(&n, &t, t, textend)) > 0 && r <= 4) {
-        y = (_sint)n * sign;
+        && (r = __read_dec(&y, &t, t, textend)) > 0 && r <= 4) {
     }
     else
         return 0;
@@ -561,10 +558,10 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
     *next = t;
 
     /* -9999..+9999 */
-    if (!(y >= -9999 && y <= 9999))
+    if (!(y <= 9999))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = y;
+    val->year = (_sint)y * sign;
     val->month = CARGV_MONTH_DEFAULT;
     val->day = CARGV_DAY_DEFAULT;
     return (int)(*next - text);
@@ -747,10 +744,10 @@ static int __read_iso8601_hms(_hms *val, _str *next, _str text, _str textend)
     if (!((h == 24 && m == 0 && s == 0) || (h < 24 && m < 60 && s < 60)))
         return CARGV_VAL_OVERFLOW;
 
-    val->hour = h;
-    val->minute = m;
-    val->second = s;
-    val->milisecond = 0;
+    val->hour = (_sint)h;
+    val->minute = (_sint)m;
+    val->second = (_sint)s;
+    val->milisecond = 0;  /* todo */
     return (int)(*next - text);
 }
 
@@ -788,8 +785,8 @@ static int __read_iso8601_hm(_hms *val, _str *next, _str text, _str textend)
     if (!((h == 24 && m == 0) || (h < 24 && m < 60)))
         return CARGV_VAL_OVERFLOW;
 
-    val->hour = h;
-    val->minute = m;
+    val->hour = (_sint)h;
+    val->minute = (_sint)m;
     val->second = 0;
     val->milisecond = 0;
     return (int)(*next - text);
@@ -822,7 +819,7 @@ static int __read_iso8601_h(_hms *val, _str *next, _str text, _str textend)
     if (!(h <= 24))
         return CARGV_VAL_OVERFLOW;
 
-    val->hour = h;
+    val->hour = (_sint)h;
     val->minute = 0;
     val->second = 0;
     val->milisecond = 0;
@@ -1330,7 +1327,7 @@ int cargv_datetime(
     return (int)(v-vals);
 }
 
-enum cargv_err_t cargv_convert_localtime(
+enum cargv_err_t cargv_local_datetime(
     struct cargv_datetime_t *dst,
     const struct cargv_datetime_t *src,
     const struct cargv_timezone_t *tz)
@@ -1338,14 +1335,13 @@ enum cargv_err_t cargv_convert_localtime(
     static const int days_of_month[] = {
         0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
-    _sint year, month, day, hour, minute;
-    _sint tzh, tzm;
+    _sint year, month, day, hour, minute, tzh, tzm;
 
-    year = (_sint)src->year;
-    month = (_sint)src->month;
-    day = (_sint)src->day;
-    hour = (_sint)src->hour;
-    minute = (_sint)src->minute;
+    year = src->year;
+    month = src->month;
+    day = src->day;
+    hour = src->hour;
+    minute = src->minute;
     tzh = -src->tz.hour + tz->hour;
     tzm = -src->tz.minute + tz->minute;
 
@@ -1379,10 +1375,36 @@ enum cargv_err_t cargv_convert_localtime(
     minute %= 60;
 
     dst->year = year;
-    dst->month = (_uint)month;
-    dst->day = (_uint)day;
+    dst->month = month;
+    dst->day = day;
     dst->hour = hour;
-    dst->minute = (_uint)minute;
+    dst->minute = minute;
+    dst->second = src->second;
+    dst->milisecond = src->milisecond;
+    memcpy(&dst->tz, tz, sizeof(dst->tz));
+    return CARGV_OK;
+}
+
+enum cargv_err_t cargv_local_time(
+    struct cargv_time_t *dst,
+    const struct cargv_time_t *src,
+    const struct cargv_timezone_t *tz)
+{
+    _sint hour, minute;
+    _sint tzh, tzm;
+
+    hour = src->hour;
+    minute = src->minute;
+    tzh = -src->tz.hour + tz->hour;
+    tzm = -src->tz.minute + tz->minute;
+
+    hour += tzh;
+    minute += 60 + tzm;
+    hour += minute / 60 - 1;
+    minute %= 60;
+
+    dst->hour = hour;
+    dst->minute = minute;
     dst->second = src->second;
     dst->milisecond = src->milisecond;
     memcpy(&dst->tz, tz, sizeof(dst->tz));

@@ -49,32 +49,32 @@ typedef double      cargv_real_t;
 
 /* Datetime types */
 struct cargv_date_t {
-    cargv_int_t year;    /* -9999..9999 */
-    cargv_uint_t month;  /* 0..12, 0 if omitted */
-    cargv_uint_t day;    /* 0..31, 0 if omitted */
+    cargv_int_t year;   /* -9999..9999 */
+    cargv_int_t month;  /* 0..12, 0 if omitted */
+    cargv_int_t day;    /* 0..31, 0 if omitted */
 };
 
 struct cargv_timezone_t {
-    cargv_int_t hour;    /* -12..12 */
-    cargv_int_t minute;  /* -59..59 */
+    cargv_int_t hour;   /* -12..12 */
+    cargv_int_t minute; /* -59..59 */
 };
 
 struct cargv_time_t {
-    cargv_uint_t hour;    /* 0..24 */
-    cargv_uint_t minute;  /* 0..59 */
-    cargv_uint_t second;  /* 0..59 */
-    cargv_uint_t milisecond;  /* 0..999 */
+    cargv_int_t hour;   /* 0..24 normally. -24..48 when time zone applied */
+    cargv_int_t minute; /* 0..59 */
+    cargv_int_t second; /* 0..59 */
+    cargv_int_t milisecond; /* 0..999 */
     struct cargv_timezone_t tz;
 };
 
 struct cargv_datetime_t {
-    cargv_int_t year;    /* -9999..9999 */
-    cargv_uint_t month;  /* 0..12, 0 if omitted */
-    cargv_uint_t day;    /* 0..31, 0 if omitted */
-    cargv_uint_t hour;    /* 0..24 */
-    cargv_uint_t minute;  /* 0..59 */
-    cargv_uint_t second;  /* 0..59 */
-    cargv_uint_t milisecond;  /* 0..999 */
+    cargv_int_t year;   /* -9999..9999 */
+    cargv_int_t month;  /* 0..12, 0 if omitted */
+    cargv_int_t day;    /* 0..31, 0 if omitted */
+    cargv_int_t hour;   /* 0..24 */
+    cargv_int_t minute; /* 0..59 */
+    cargv_int_t second; /* 0..59 */
+    cargv_int_t milisecond; /* 0..999 */
     struct cargv_timezone_t tz;
 };
 
@@ -87,10 +87,10 @@ struct cargv_datetime_t {
 #define CARGV_TZ_MINUTE_DEFAULT   CARGV_SINT_MIN  /* omitted */
 extern const struct cargv_timezone_t *CARGV_TZ_LOCAL;
 
-#define CARGV_HOUR_DEFAULT        CARGV_UINT_MAX   /* omitted */
-#define CARGV_MINUTE_DEFAULT      CARGV_UINT_MAX   /* omitted */
-#define CARGV_SECOND_DEFAULT      CARGV_UINT_MAX   /* omitted */
-#define CARGV_MILISECOND_DEFAULT  CARGV_UINT_MAX   /* omitted */
+#define CARGV_HOUR_DEFAULT        CARGV_SINT_MIN   /* omitted */
+#define CARGV_MINUTE_DEFAULT      CARGV_SINT_MIN   /* omitted */
+#define CARGV_SECOND_DEFAULT      CARGV_SINT_MIN   /* omitted */
+#define CARGV_MILISECOND_DEFAULT  CARGV_SINT_MIN   /* omitted */
 /*extern const struct cargv_time_t *CARGV_TIME_DEFAULT;*/
 
 /*extern const struct cargv_datetime_t *CARGV_DATETIME_DEFAULT;*/
@@ -353,7 +353,9 @@ int cargv_datetime(
     const char *name,
     struct cargv_datetime_t *vals, cargv_len_t valc);
 
-/* Convert a local time to another local time with a time zone.
+/* Convert a local datetime to another local datetime with a time zone.
+
+Resulting `hour` may be in range [0..24], and date might be modified.
 
 [out] return: 0 if succeeded, <0 if error. See cargv_err_t.
 [out] dst:    Converted local time.
@@ -361,9 +363,24 @@ int cargv_datetime(
 [in]  tz:     Time zone to convert with.
 */
 CARGV_EXPORT
-enum cargv_err_t cargv_convert_localtime(
+enum cargv_err_t cargv_local_datetime(
     struct cargv_datetime_t *dst,
     const struct cargv_datetime_t *src,
+    const struct cargv_timezone_t *tz);
+
+/* Convert a local time to another local time with a time zone.
+
+Resulting `hour` may be in range [-12..36].
+
+[out] return: 0 if succeeded, <0 if error. See cargv_err_t.
+[out] dst:    Converted local time.
+[in]  src:    Local time to convert.
+[in]  tz:     Time zone to convert with.
+*/
+CARGV_EXPORT
+enum cargv_err_t cargv_local_time(
+    struct cargv_time_t *dst,
+    const struct cargv_time_t *src,
     const struct cargv_timezone_t *tz);
 
 
