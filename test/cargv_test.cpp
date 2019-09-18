@@ -745,6 +745,34 @@ TEST_F(Test_cargv, degree_overflow)
     EXPECT_EQ(cargv_shift(&cargv, 1), 0);  // Ensure empty
 }
 
+TEST_F(Test_cargv, get_degree)
+{
+    static const cargv_degree_t vals[] = {
+        {1,0,0,0,0,0},
+        {-32,0,0,0,0,0},
+        {0,0,0,0,0,0},
+        {132,0,0,0,0,0},
+        {91,0,3,0,0,0},
+        {32,395700,0,0,0,0},
+        {-132,0,-39,-500000,0,0},
+        {79,0,33,0,33,330000},
+        {-79,-0,-33,-0,-33,-330000},
+    };
+    static const cargv_real_t expected[] = {
+        1.0, -32.0, .0, 132.0, 91.0+3.0/60.0,
+        32.395700,
+        -132.0-39.5/60.0,
+        79.0+33.0/60.0+33.33/3600.0,
+        -79.0-33.0/60.0-33.33/3600.0,
+    };
+    const cargv_real_t *e = expected;
+
+    ASSERT_EQ(_c(vals), _c(expected));
+    for (const cargv_degree_t *v = vals; v-vals < _c(vals); ++v, ++e) {
+        EXPECT_EQ(cargv_get_degree(v), *e);
+    }
+}
+
 TEST_F(Test_cargv, geocoord)
 {
     static const char *args[] = { _name,
