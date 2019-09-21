@@ -48,23 +48,9 @@ typedef double      cargv_real_t;
 
 
 /* Datetime types */
-struct cargv_date_t {
-    cargv_int_t year;   /* -9999..9999 */
-    cargv_int_t month;  /* 0..12, 0 if omitted */
-    cargv_int_t day;    /* 0..31, 0 if omitted */
-};
-
 struct cargv_timezone_t {
     cargv_int_t hour;   /* -12..12 */
     cargv_int_t minute; /* -59..59 */
-};
-
-struct cargv_time_t {
-    cargv_int_t hour;   /* 0..24 normally. -24..48 when time zone applied */
-    cargv_int_t minute; /* 0..59 */
-    cargv_int_t second; /* 0..59 */
-    cargv_int_t milisecond; /* 0..999 */
-    struct cargv_timezone_t tz;
 };
 
 struct cargv_datetime_t {
@@ -78,25 +64,27 @@ struct cargv_datetime_t {
     struct cargv_timezone_t tz;
 };
 
-#define CARGV_YEAR_DEFAULT        CARGV_SINT_MIN  /* omitted */
-#define CARGV_MONTH_DEFAULT       0               /* omitted */
-#define CARGV_DAY_DEFAULT         0               /* omitted */
-/*extern const struct cargv_date_t *CARGV_DATE_DEFAULT;*/
-
-#define CARGV_TZ_HOUR_DEFAULT     CARGV_SINT_MIN  /* omitted */
-#define CARGV_TZ_MINUTE_DEFAULT   CARGV_SINT_MIN  /* omitted */
-extern const struct cargv_timezone_t *CARGV_TZ_LOCAL;
-
-#define CARGV_HOUR_DEFAULT        CARGV_SINT_MIN   /* omitted */
-#define CARGV_MINUTE_DEFAULT      CARGV_SINT_MIN   /* omitted */
-#define CARGV_SECOND_DEFAULT      CARGV_SINT_MIN   /* omitted */
-#define CARGV_MILISECOND_DEFAULT  CARGV_SINT_MIN   /* omitted */
-/*extern const struct cargv_time_t *CARGV_TIME_DEFAULT;*/
-
-/*extern const struct cargv_datetime_t *CARGV_DATETIME_DEFAULT;*/
+#define CARGV_YEAR_DEFAULT        CARGV_SINT_MIN
+#define CARGV_MONTH_DEFAULT       0
+#define CARGV_DAY_DEFAULT         0
+#define CARGV_HOUR_DEFAULT        CARGV_SINT_MIN
+#define CARGV_MINUTE_DEFAULT      CARGV_SINT_MIN
+#define CARGV_SECOND_DEFAULT      CARGV_SINT_MIN
+#define CARGV_MILISECOND_DEFAULT  CARGV_SINT_MIN
+#define CARGV_TZ_HOUR_DEFAULT     CARGV_SINT_MIN
+#define CARGV_TZ_MINUTE_DEFAULT   CARGV_SINT_MIN
 
 extern const struct cargv_timezone_t *CARGV_UTC;
-extern const struct cargv_timezone_t *CARGV_TZ_SEOUL;
+extern const struct cargv_timezone_t *CARGV_TZ_SOUTH_KOREA;
+extern const struct cargv_timezone_t *CARGV_TZ_US_PST;
+extern const struct cargv_timezone_t *CARGV_TZ_US_PDT;
+extern const struct cargv_timezone_t *CARGV_TZ_US_MST;
+extern const struct cargv_timezone_t *CARGV_TZ_US_MDT;
+extern const struct cargv_timezone_t *CARGV_TZ_US_CST;
+extern const struct cargv_timezone_t *CARGV_TZ_US_CDT;
+extern const struct cargv_timezone_t *CARGV_TZ_US_EST;
+extern const struct cargv_timezone_t *CARGV_TZ_US_EDT;
+extern const struct cargv_timezone_t *CARGV_TZ_LOCAL;
 
 
 /* Geocoord types */
@@ -279,13 +267,14 @@ Modified ISO 8601:
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid dates.
 [out] vals:   Array to read values into.
+              Irrenvant members are filled with default values.
 [in]  valc:   Max number of values to read in. Values beyond are not processed.
 */
 CARGV_EXPORT
 int cargv_date(
     struct cargv_t *cargv,
     const char *name,
-    struct cargv_date_t *vals, cargv_len_t valc);
+    struct cargv_datetime_t *vals, cargv_len_t valc);
 
 /* Read time, including time zone, value arguments.
 
@@ -305,13 +294,14 @@ Omitted time zone represents system local time.
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid.
 [out] vals:   Array to read values into.
+              Irrenvant members are filled with default values.
 [in]  valc:   Max number of values to read in. Values beyond are not processed.
 */
 CARGV_EXPORT
 int cargv_time(
     struct cargv_t *cargv,
     const char *name,
-    struct cargv_time_t *vals, cargv_len_t valc);
+    struct cargv_datetime_t *vals, cargv_len_t valc);
 
 /* Read time zone arguments.
 
@@ -345,6 +335,7 @@ Modified ISO 8601:
 [out] return: Number of values successfully read.
               CARGV_VAL_OVERFLOW if any read value are not valid dates.
 [out] vals:   Array to read values into.
+              Omitted members are filled with default values.
 [in]  valc:   Max number of values to read in. Values beyond are not processed.
 */
 CARGV_EXPORT
@@ -366,21 +357,6 @@ CARGV_EXPORT
 enum cargv_err_t cargv_local_datetime(
     struct cargv_datetime_t *dst,
     const struct cargv_datetime_t *src,
-    const struct cargv_timezone_t *tz);
-
-/* Convert a local time to another local time with a time zone.
-
-Resulting `hour` may be in range [-12..36].
-
-[out] return: 0 if succeeded, <0 if error. See cargv_err_t.
-[out] dst:    Converted local time.
-[in]  src:    Local time to convert.
-[in]  tz:     Time zone to convert with.
-*/
-CARGV_EXPORT
-enum cargv_err_t cargv_local_time(
-    struct cargv_time_t *dst,
-    const struct cargv_time_t *src,
     const struct cargv_timezone_t *tz);
 
 

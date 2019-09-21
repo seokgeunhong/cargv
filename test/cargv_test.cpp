@@ -267,14 +267,30 @@ TEST_F(Test_cargv, date)
         "+2019", "0000", "0", "-100", "1",
         "--0102", "--02-03", "--04/05",
     };
-    static const cargv_date_t expected[] = {
-        {1010,10,10}, {1976,6,17}, {1976,6,17}, {-45,1,23},
-        {-1010,1,0}, {1001,1,0}, {-100,2,0}, {1,2,3},
-        {2019,0,0}, {0,0,0}, {0,0,0}, {-100,0,0}, {1,0,0},
-        {CARGV_YEAR_DEFAULT,1,2}, {CARGV_YEAR_DEFAULT,2,3}, {CARGV_YEAR_DEFAULT,4,5},
+
+    #define _HMSZ_DEFAULT CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,CARGV_SECOND_DEFAULT,CARGV_MILISECOND_DEFAULT,*CARGV_TZ_LOCAL
+    static const cargv_datetime_t expected[] = {
+        {1010,10,10,_HMSZ_DEFAULT},
+        {1976,6,17,_HMSZ_DEFAULT},
+        {1976,6,17,_HMSZ_DEFAULT},
+        {-45,1,23,_HMSZ_DEFAULT},
+        {-1010,1,0,_HMSZ_DEFAULT},
+        {1001,1,0,_HMSZ_DEFAULT},
+        {-100,2,0,_HMSZ_DEFAULT},
+        {1,2,3,_HMSZ_DEFAULT},
+        {2019,0,0,_HMSZ_DEFAULT},
+        {0,0,0,_HMSZ_DEFAULT},
+        {0,0,0,_HMSZ_DEFAULT},
+        {-100,0,0,_HMSZ_DEFAULT},
+        {1,0,0,_HMSZ_DEFAULT},
+        {CARGV_YEAR_DEFAULT,1,2,_HMSZ_DEFAULT},
+        {CARGV_YEAR_DEFAULT,2,3,_HMSZ_DEFAULT},
+        {CARGV_YEAR_DEFAULT,4,5,_HMSZ_DEFAULT},
     };
-    cargv_date_t v;
-    const cargv_date_t *e = expected;
+    #undef _HMSZ_DEFAULT
+    
+    cargv_datetime_t v;
+    const cargv_datetime_t *e = expected;
 
     ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
@@ -304,7 +320,7 @@ TEST_F(Test_cargv, date_error)
         "10000-12-24",  // >4 digits for year
         "---19", "--+10-12",
     };
-    cargv_date_t v;
+    cargv_datetime_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
@@ -322,7 +338,7 @@ TEST_F(Test_cargv, date_overflow)
     static const char *args[] = { _name,
         "2018-13-01", "2018-02-29", "2019-00-01", "2019-12-00", "--19-03",
     };
-    cargv_date_t v;
+    cargv_datetime_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
@@ -341,22 +357,25 @@ TEST_F(Test_cargv, time)
         "0", "4", "0:0", "12:34", "24:00", "14:59:27",
         "0Z", "4Z", "00:00+00", "24:00+1", "14:59:27-9", "23:59-09:20",
     };
-    static const cargv_time_t expected[] = {
-        {0,0,0,0,*CARGV_TZ_LOCAL},
-        {4,0,0,0,*CARGV_TZ_LOCAL},
-        {0,0,0,0,*CARGV_TZ_LOCAL},
-        {12,34,0,0,*CARGV_TZ_LOCAL},
-        {24,0,0,0,*CARGV_TZ_LOCAL},
-        {14,59,27,0,*CARGV_TZ_LOCAL},
-        {0,0,0,0,{0,0}},
-        {4,0,0,0,{0,0}},
-        {0,0,0,0,{0,0}},
-        {24,0,0,0,{1,0}},
-        {14,59,27,0,{-9,0}},
-        {23,59,0,0,{-9,-20}},
+    #define _YMD_DEFAULT CARGV_YEAR_DEFAULT,CARGV_MONTH_DEFAULT,CARGV_DAY_DEFAULT
+    static const cargv_datetime_t expected[] = {
+        {_YMD_DEFAULT, 0,0,0,0,*CARGV_TZ_LOCAL},
+        {_YMD_DEFAULT, 4,0,0,0,*CARGV_TZ_LOCAL},
+        {_YMD_DEFAULT, 0,0,0,0,*CARGV_TZ_LOCAL},
+        {_YMD_DEFAULT, 12,34,0,0,*CARGV_TZ_LOCAL},
+        {_YMD_DEFAULT, 24,0,0,0,*CARGV_TZ_LOCAL},
+        {_YMD_DEFAULT, 14,59,27,0,*CARGV_TZ_LOCAL},
+        {_YMD_DEFAULT, 0,0,0,0,{0,0}},
+        {_YMD_DEFAULT, 4,0,0,0,{0,0}},
+        {_YMD_DEFAULT, 0,0,0,0,{0,0}},
+        {_YMD_DEFAULT, 24,0,0,0,{1,0}},
+        {_YMD_DEFAULT, 14,59,27,0,{-9,0}},
+        {_YMD_DEFAULT, 23,59,0,0,{-9,-20}},
     };
-    cargv_time_t v;
-    cargv_time_t const *e = expected;
+    #undef _YMD_DEFAULT
+    
+    cargv_datetime_t v;
+    cargv_datetime_t const *e = expected;
 
     ASSERT_EQ(_c(args)-1, _c(expected));
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
@@ -382,7 +401,7 @@ TEST_F(Test_cargv, time_error)
         "123:00Z", "12:345Z", "12:34:567Z", "12:34:Z", "12:34:56:Z",
         "12:", "12:34:", "12:34:56:", "12/34",
     };
-    cargv_time_t v;
+    cargv_datetime_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
@@ -400,7 +419,7 @@ TEST_F(Test_cargv, time_overflow)
     static const char *args[] = { _name,
         "12-34", "24:01Z", "25:00Z", "0:60Z", "01:02:60Z",
     };
-    cargv_time_t v;
+    cargv_datetime_t v;
 
     ASSERT_EQ(cargv_init(&cargv, _name, _c(args), args), CARGV_OK);
     EXPECT_EQ(cargv_shift(&cargv, 1), 1);  //_name
@@ -623,7 +642,7 @@ TEST_F(Test_cargv, local_datetime)
     }
 }
 
-TEST_F(Test_cargv, convert_localtime_overflow)
+TEST_F(Test_cargv, local_datetime_overflow)
 {
     static const cargv_datetime_t srcs[] = {
         {-9999,1,1,4,0,0,0,{+9,0}},
@@ -633,42 +652,6 @@ TEST_F(Test_cargv, convert_localtime_overflow)
 
     for (cargv_datetime_t const *s = srcs; s - srcs < _c(srcs); ++s) {
         EXPECT_EQ(cargv_local_datetime(&v, s, CARGV_UTC), CARGV_VAL_OVERFLOW);
-    }
-}
-
-TEST_F(Test_cargv, local_time)
-{
-    static const cargv_time_t srcs[] = {
-        {8,10,0,0,{9,30}},
-        {8,10,0,0,{9,30}},
-        {23,59,0,0,{-12,0}},
-        {12,0,0,0,{12,0}},
-        {12,0,0,0,{-12,0}},
-        {8,10,0,0,{9,30}},
-        {18,40,0,0,{-9,-30}},
-    };
-    static const cargv_time_t dsts[] = {
-        {-2,40,0,0,*CARGV_UTC},
-        {-11,10,0,0,{-9,-30}},
-        {47,59,0,0,{12,0}},
-        {-12,0,0,0,{-12,0}},
-        {36,0,0,0,{12,0}},
-        {-2,40,0,0,*CARGV_UTC},
-        {28,10,0,0,*CARGV_UTC},
-    };
-    cargv_time_t v;
-
-    ASSERT_EQ(_c(srcs), _c(dsts));
-    for (cargv_time_t const *s = srcs, *d = dsts;
-         s - srcs < _c(srcs);
-         ++s, ++d) {
-        EXPECT_EQ(cargv_local_time(&v, s, &d->tz), CARGV_OK);
-        EXPECT_EQ(v.hour, d->hour);
-        EXPECT_EQ(v.minute, d->minute);
-        EXPECT_EQ(v.second, d->second);
-        EXPECT_EQ(v.milisecond, d->milisecond);
-        EXPECT_EQ(v.tz.hour, d->tz.hour);
-        EXPECT_EQ(v.tz.minute, d->tz.minute);
     }
 }
 

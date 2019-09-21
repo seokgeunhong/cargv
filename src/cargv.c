@@ -33,12 +33,16 @@ typedef cargv_len_t               _len;
 typedef cargv_int_t               _sint;
 typedef cargv_uint_t              _uint;
 typedef cargv_real_t              _real;
-typedef struct cargv_date_t       _ymd;
+typedef struct _ymd_t {
+    _sint year;   /* -9999..9999 */
+    _sint month;  /* 1..12 */
+    _sint day;    /* 1..31 */
+} _ymd;
 typedef struct _hms_t {
-    _sint hour;    /* -12..36 */
-    _sint minute;  /* 0..59 */
-    _sint second;  /* 0..59 */
-    _sint milisecond;  /* 0..999 */
+    _sint hour;         /* -12..36 */
+    _sint minute;       /* 0..59 */
+    _sint second;       /* 0..59 */
+    _sint milisecond;   /* 0..999 */
 } _hms;
 typedef struct cargv_timezone_t   _tz;
 typedef struct cargv_datetime_t   _datetime;
@@ -47,7 +51,17 @@ typedef struct cargv_geocoord_t   _geocoord;
 
 #define _SINT_MIN   CARGV_SINT_MIN
 #define _SINT_MAX   CARGV_SINT_MAX
-#define _UI_MAX   CARGV_UINT_MAX
+#define _UINT_MAX   CARGV_UINT_MAX
+
+#define _Y_DEFAULT    CARGV_YEAR_DEFAULT
+#define _M_DEFAULT    CARGV_MONTH_DEFAULT
+#define _D_DEFAULT    CARGV_DAY_DEFAULT
+#define _h_DEFAULT    CARGV_HOUR_DEFAULT
+#define _m_DEFAULT    CARGV_MINUTE_DEFAULT
+#define _s_DEFAULT    CARGV_SECOND_DEFAULT
+#define _ms_DEFAULT   CARGV_MILISECOND_DEFAULT
+#define _TZh_DEFAULT  CARGV_TZ_HOUR_DEFAULT
+#define _TZm_DEFAULT  CARGV_TZ_MINUTE_DEFAULT
 
 
 /* power of 10 */
@@ -270,7 +284,7 @@ static int __read_dec(_uint *val, _str *next, _str text, _str textend)
     t = text, u = 0;
     while (t < textend) {
         if (__read_digit_dec(&d, &t, t, textend) > 0) {
-            if (u < _UI_MAX/10 || (u == _UI_MAX/10 && d <= _UI_MAX%10)) {
+            if (u < _UINT_MAX/10 || (u == _UINT_MAX/10 && d <= _UINT_MAX%10)) {
                 u = u * 10 + d;
             }
             else {
@@ -303,7 +317,7 @@ static int __read_dec_sep(_uint *val, _str *next, _str text, _str textend)
     t = text, u = 0, l = 0, sep = 0;
     while (t < textend) {
         if (__read_digit_dec(&d, &t, t, textend) > 0) {
-            if (u < _UI_MAX/10 || (u == _UI_MAX/10 && d <= _UI_MAX%10)) {
+            if (u < _UINT_MAX/10 || (u == _UINT_MAX/10 && d <= _UINT_MAX%10)) {
                 ++l;
                 u = u * 10 + d;
             }
@@ -389,42 +403,54 @@ static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
 }
 
 
-static const struct cargv_date_t _YMD_DEFAULT
-    = {CARGV_YEAR_DEFAULT, CARGV_MONTH_DEFAULT, CARGV_DAY_DEFAULT};
-/*const struct cargv_date_t *CARGV_DATE_DEFAULT = &_YMD_DEFAULT;*/
-
-static const struct _hms_t _HMS_DEFAULT = {
-    CARGV_HOUR_DEFAULT, CARGV_MINUTE_DEFAULT, CARGV_SECOND_DEFAULT,
-    CARGV_MILISECOND_DEFAULT,
+static const _ymd _YMD_DEFAULT = {
+    _Y_DEFAULT, _M_DEFAULT, _D_DEFAULT
 };
-
-static const struct cargv_timezone_t _TZ_DEFAULT
-    = {CARGV_TZ_HOUR_DEFAULT, CARGV_TZ_MINUTE_DEFAULT};
+static const _hms _HMS_DEFAULT = {
+    _h_DEFAULT, _m_DEFAULT, _s_DEFAULT, _ms_DEFAULT
+};
+static const _tz _TZ_DEFAULT = {
+    _TZh_DEFAULT, _TZm_DEFAULT
+};
 const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_DEFAULT;
 
-/*
-static const struct cargv_time_t _TIME_DEFAULT = {
-    CARGV_HOUR_DEFAULT, CARGV_MINUTE_DEFAULT, CARGV_SECOND_DEFAULT,
-    CARGV_MILISECOND_DEFAULT,
-    {CARGV_TZ_HOUR_DEFAULT, CARGV_TZ_MINUTE_DEFAULT}
-};
-const struct cargv_time_t *CARGV_TIME_DEFAULT = &_TIME_DEFAULT;
-*/
-
-/*
-static const struct cargv_datetime_t _DATETIME_DEFAULT = {
-    CARGV_YEAR_DEFAULT, CARGV_MONTH_DEFAULT, CARGV_DAY_DEFAULT,
-    CARGV_HOUR_DEFAULT, CARGV_MINUTE_DEFAULT, CARGV_SECOND_DEFAULT,
-    CARGV_MILISECOND_DEFAULT,
-    {CARGV_TZ_HOUR_DEFAULT, CARGV_TZ_MINUTE_DEFAULT}
-};
-const struct cargv_datetime_t *CARGV_DATETIME_DEFAULT = &_DATETIME_DEFAULT;
-*/
-
-static const struct cargv_timezone_t _UTC         = {+0,0};
-static const struct cargv_timezone_t _TZ_SEOUL    = {+9,0};
-const struct cargv_timezone_t *CARGV_UTC = &_UTC;
-const struct cargv_timezone_t *CARGV_TZ_SEOUL = &_TZ_SEOUL;
+static const _tz _TZ_0      = {0,0};
+static const _tz _TZ_E_1    = {+1,0};
+static const _tz _TZ_E_2    = {+2,0};
+static const _tz _TZ_E_3    = {+3,0};
+static const _tz _TZ_E_4    = {+4,0};
+static const _tz _TZ_E_5    = {+5,0};
+static const _tz _TZ_E_6    = {+6,0};
+static const _tz _TZ_E_7    = {+7,0};
+static const _tz _TZ_E_8    = {+8,0};
+static const _tz _TZ_E_9    = {+9,0};
+static const _tz _TZ_E_10   = {+10,0};
+static const _tz _TZ_E_11   = {+11,0};
+static const _tz _TZ_E_12   = {+12,0};
+static const _tz _TZ_E_13   = {+13,0};
+static const _tz _TZ_E_14   = {+14,0};
+static const _tz _TZ_W_1    = {-1,0};
+static const _tz _TZ_W_2    = {-2,0};
+static const _tz _TZ_W_3    = {-3,0};
+static const _tz _TZ_W_4    = {-4,0};
+static const _tz _TZ_W_5    = {-5,0};
+static const _tz _TZ_W_6    = {-6,0};
+static const _tz _TZ_W_7    = {-7,0};
+static const _tz _TZ_W_8    = {-8,0};
+static const _tz _TZ_W_9    = {-9,0};
+static const _tz _TZ_W_10   = {-10,0};
+static const _tz _TZ_W_11   = {-11,0};
+static const _tz _TZ_W_12   = {-12,0};
+const struct cargv_timezone_t *CARGV_UTC = &_TZ_0;
+const struct cargv_timezone_t *CARGV_TZ_SOUTH_KOREA = &_TZ_E_9;
+const struct cargv_timezone_t *CARGV_TZ_US_PST = &_TZ_W_8;
+const struct cargv_timezone_t *CARGV_TZ_US_PDT = &_TZ_W_7;
+const struct cargv_timezone_t *CARGV_TZ_US_MST = &_TZ_W_7;
+const struct cargv_timezone_t *CARGV_TZ_US_MDT = &_TZ_W_6;
+const struct cargv_timezone_t *CARGV_TZ_US_CST = &_TZ_W_6;
+const struct cargv_timezone_t *CARGV_TZ_US_CDT = &_TZ_W_5;
+const struct cargv_timezone_t *CARGV_TZ_US_EST = &_TZ_W_5;
+const struct cargv_timezone_t *CARGV_TZ_US_EDT = &_TZ_W_4;
 
 /* return 1 if the month is leap month, otherwise 0. */
 static _sint __leap(_sint year, _sint month)
@@ -528,7 +554,7 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
 
     val->year = (_sint)y * sign;
     val->month = (_sint)m;
-    val->day = CARGV_DAY_DEFAULT;
+    val->day = _D_DEFAULT;
     return (int)(*next - text);
 }
 
@@ -562,8 +588,8 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
         return CARGV_VAL_OVERFLOW;
 
     val->year = (_sint)y * sign;
-    val->month = CARGV_MONTH_DEFAULT;
-    val->day = CARGV_DAY_DEFAULT;
+    val->month = _M_DEFAULT;
+    val->day = _D_DEFAULT;
     return (int)(*next - text);
 }
 
@@ -603,7 +629,7 @@ static int __read_iso8601_MD(_ymd *val, _str *next, _str text, _str textend)
     if (!(m > 0 && m <= 12 && d > 0 && d <= __days_of_month_this_year(m)))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = CARGV_YEAR_DEFAULT;
+    val->year = _Y_DEFAULT;
     val->month = m;
     val->day = d;
     return (int)(*next - text);
@@ -617,7 +643,7 @@ static int __read_iso8601_Z(_tz *val, _str *next, _str text, _str textend)
     if (!(__match_chars_set(&t, t, textend, "Z", 1, 1, 1) > 0))
         return 0;
 
-    memcpy(val, &_UTC, sizeof(*val));
+    memcpy(val, &_TZ_0, sizeof(*val));
     return (int)((*next = t) - text);
 }
 
@@ -1055,9 +1081,9 @@ int cargv_text(
 {
     _str *v, *a;
 
-    v = vals;
     a = cargv->args;
-    while (v - vals < valc && a < cargv->argend)
+    v = vals;
+    while (a < cargv->argend && v - vals < valc)
         *v++ = *a++;
 
     return (int)(v-vals);
@@ -1107,9 +1133,9 @@ int cargv_int(
     _sint *v, n;
     _str *a, t, e;
 
-    v = vals;
     a = cargv->args;
-    while (v - vals < valc && a < cargv->argend) {
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
         if ((r = __read_sint_dec(&n, &t, t, e)) == 0)
@@ -1134,9 +1160,9 @@ int cargv_uint(
     _uint *v, n;
     _str *a, t, e;
 
-    v = vals;
     a = cargv->args;
-    while (v - vals < valc && a < cargv->argend) {
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
         if ((r = __read_uint_dec(&n, &t, t, e)) == 0)
@@ -1155,15 +1181,16 @@ int cargv_uint(
 int cargv_date(
     struct cargv_t *cargv,
     const char *name,
-    struct cargv_date_t *vals, cargv_len_t valc)
+    struct cargv_datetime_t *vals, cargv_len_t valc)
 {
     int r;
-    _ymd *v, d;
+    _datetime *v;
+    _ymd d;
     _str *a, t, e;
 
-    v = vals;
     a = cargv->args;
-    while (v - vals < valc && a < cargv->argend) {
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
         if ((r = __read_iso8601_YMD(&d, &t, t, e)) == 0
@@ -1176,8 +1203,17 @@ int cargv_date(
         if (r < 0)
             return err_val_result(cargv, name, "date", *a, r);
 
-        memcpy(v++, &d, sizeof(*v));
-        a++;
+        v->year = d.year;
+        v->month = d.month;
+        v->day = d.day;
+        v->hour = _h_DEFAULT;
+        v->minute = _m_DEFAULT;
+        v->second = _s_DEFAULT;
+        v->milisecond = _ms_DEFAULT;
+        v->tz.hour = _TZh_DEFAULT;
+        v->tz.minute = _TZm_DEFAULT;
+        ++v;
+        ++a;
     }
     return (int)(v-vals);
 }
@@ -1185,15 +1221,17 @@ int cargv_date(
 int cargv_time(
     struct cargv_t *cargv,
     const char *name,
-    struct cargv_time_t *vals, cargv_len_t valc)
+    struct cargv_datetime_t *vals, cargv_len_t valc)
 {
     int rh, rz;
-    struct cargv_time_t *v;
+    _datetime *v;
     _hms h;
-    _tz z;
+    _tz tz;
     _str *a, t, e;
 
-    for (a = cargv->args, v = vals; v - vals < valc && a < cargv->argend;) {
+    a = cargv->args;
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
 
@@ -1202,8 +1240,8 @@ int cargv_time(
             && (rh = __read_iso8601_hm(&h, &t, t, e)) == 0
             && (rh = __read_iso8601_h(&h, &t, t, e)) == 0)
             break;
-        if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
-            memcpy(&z, &_TZ_DEFAULT, sizeof(z));
+        if ((rz = __read_iso8601_tz(&tz, &t, t, e)) == 0)
+            memcpy(&tz, &_TZ_DEFAULT, sizeof(tz));
         if (!__match_end(t, e))
             break;
         if (rh < 0)
@@ -1211,11 +1249,14 @@ int cargv_time(
         if (rz < 0)
             return err_val_result(cargv, name, "time", *a, rz);
 
+        v->year = _Y_DEFAULT;
+        v->month = _M_DEFAULT;
+        v->day = _D_DEFAULT;
         v->hour = h.hour;
         v->minute = h.minute;
         v->second = h.second;
         v->milisecond = h.milisecond;
-        memcpy(&v->tz, &z, sizeof(v->tz));
+        memcpy(&v->tz, &tz, sizeof(v->tz));
         ++v;
         ++a;
     }
@@ -1231,7 +1272,9 @@ int cargv_timezone(
     _tz *v, z;
     _str *a, t, e;
 
-    for (a = cargv->args, v = vals; v - vals < valc && a < cargv->argend;) {
+    a = cargv->args;
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
         if ((r = __read_iso8601_tz(&z, &t, t, e)) == 0)
@@ -1256,11 +1299,13 @@ int cargv_datetime(
     _datetime *v;
     _ymd d;
     _hms h;
-    _tz z;
+    _tz tz;
     _str *a, t, e;
     int rd = 0, rh = 0, rz = 0;
 
-    for (a = cargv->args, v = vals; v - vals < valc && a < cargv->argend;) {
+    a = cargv->args;
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
 
@@ -1273,32 +1318,32 @@ int cargv_datetime(
             && ((rh = __read_iso8601_hms(&h, &t, t, e)) != 0
                 || (rh = __read_iso8601_hm(&h, &t, t, e)) != 0
                 || (rh = __read_iso8601_h(&h, &t, t, e)) != 0)) {
-            if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
-                memcpy(&z, &_TZ_DEFAULT, sizeof(z));
+            if ((rz = __read_iso8601_tz(&tz, &t, t, e)) == 0)
+                memcpy(&tz, &_TZ_DEFAULT, sizeof(tz));
         }
         /* <date> */
         else if ((rd = __read_iso8601_YMD(&d, &t, (t = *a), e)) != 0
                 || (rd = __read_iso8601_YM(&d, &t, t, e)) != 0
                 || (rd = __read_iso8601_MD(&d, &t, t, e)) != 0) {
             memcpy(&h, &_HMS_DEFAULT, sizeof(h));
-            memcpy(&z, &_TZ_DEFAULT, sizeof(z));
+            memcpy(&tz, &_TZ_DEFAULT, sizeof(tz));
         }
         /* <time>[tz] */
         else if ((rh = __read_iso8601_hms(&h, &t, (t = *a), e)) != 0
                  || (rh = __read_iso8601_hm(&h, &t, t, e)) != 0) {
             memcpy(&d, &_YMD_DEFAULT, sizeof(d));
-            if ((rz = __read_iso8601_tz(&z, &t, t, e)) == 0)
-                memcpy(&z, &_TZ_DEFAULT, sizeof(z));
+            if ((rz = __read_iso8601_tz(&tz, &t, t, e)) == 0)
+                memcpy(&tz, &_TZ_DEFAULT, sizeof(tz));
         }
         /* <hour><tz> */
         else if ((rh = __read_iso8601_h(&h, &t, t, e)) != 0
-                 && (rz = __read_iso8601_tz(&z, &t, t, e)) != 0) {
+                 && (rz = __read_iso8601_tz(&tz, &t, t, e)) != 0) {
             memcpy(&d, &_YMD_DEFAULT, sizeof(d));
         }
         /* <year> */
         else if ((rd = __read_iso8601_Y(&d, &t, (t = *a), e)) != 0) {
             memcpy(&h, &_HMS_DEFAULT, sizeof(h));
-            memcpy(&z, &_TZ_DEFAULT, sizeof(z));
+            memcpy(&tz, &_TZ_DEFAULT, sizeof(tz));
         }
         else
             break;
@@ -1319,10 +1364,10 @@ int cargv_datetime(
         v->minute = h.minute;
         v->second = h.second;
         v->milisecond = h.milisecond;
-        memcpy(&v->tz, &z, sizeof(v->tz));
+        memcpy(&v->tz, &tz, sizeof(v->tz));
 
-        ++v;
         ++a;
+        ++v;
     }
     return (int)(v-vals);
 }
@@ -1385,32 +1430,6 @@ enum cargv_err_t cargv_local_datetime(
     return CARGV_OK;
 }
 
-enum cargv_err_t cargv_local_time(
-    struct cargv_time_t *dst,
-    const struct cargv_time_t *src,
-    const struct cargv_timezone_t *tz)
-{
-    _sint hour, minute;
-    _sint tzh, tzm;
-
-    hour = src->hour;
-    minute = src->minute;
-    tzh = -src->tz.hour + tz->hour;
-    tzm = -src->tz.minute + tz->minute;
-
-    hour += tzh;
-    minute += 60 + tzm;
-    hour += minute / 60 - 1;
-    minute %= 60;
-
-    dst->hour = hour;
-    dst->minute = minute;
-    dst->second = src->second;
-    dst->milisecond = src->milisecond;
-    memcpy(&dst->tz, tz, sizeof(dst->tz));
-    return CARGV_OK;
-}
-
 
 int cargv_degree(
     struct cargv_t *cargv,
@@ -1421,7 +1440,9 @@ int cargv_degree(
     _degree *v;
     _str *a, t, e;
 
-    for (v = vals, a = cargv->args; v - vals < valc && a < cargv->argend;) {
+    a = cargv->args;
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
         if ((r = __read_iso6709_degree(v, &t, t, e)) == 0)
@@ -1446,7 +1467,9 @@ int cargv_geocoord(
     _geocoord *v;
     _str *a, t, e;
 
-    for (v = vals, a = cargv->args; v - vals < valc && a < cargv->argend;) {
+    a = cargv->args;
+    v = vals;
+    while (a < cargv->argend && v - vals < valc) {
         t = *a;
         e = t + strlen(t);
         if ((r = __read_iso6709_geocoord(v, &t, t, e)) == 0)
@@ -1462,11 +1485,9 @@ int cargv_geocoord(
     return (int)(v-vals);
 }
 
-
 _real cargv_get_degree(const struct cargv_degree_t *val)
 {
     return (_real)val->degree + (_real)val->microdegree / 1E+6
         + ((_real)val->minute + (_real)val->microminute / 1E+6) / 60.0
         + ((_real)val->second + (_real)val->microsecond / 1E+6) / 3600.0;
 }
-
