@@ -27,7 +27,9 @@ const char *cargv_version_string()
 }
 
 
-/* Short internal names for exported types and constants */
+/* Short internal names for exported types and constants
+*/
+
 typedef const char               *_str;
 typedef cargv_len_t               _len;
 typedef cargv_int_t               _sint;
@@ -39,7 +41,7 @@ typedef struct _ymd_t {
     _sint day;    /* 1..31 */
 } _ymd;
 typedef struct _hms_t {
-    _sint hour;         /* -12..36 */
+    _sint hour;         /* 0..24 */
     _sint minute;       /* 0..59 */
     _sint second;       /* 0..59 */
     _sint milisecond;   /* 0..999 */
@@ -53,6 +55,11 @@ typedef struct cargv_geocoord_t   _geocoord;
 #define _SINT_MAX   CARGV_SINT_MAX
 #define _UINT_MAX   CARGV_UINT_MAX
 
+#define _Y_MIN      CARGV_YEAR_MIN
+#define _Y_MAX      CARGV_YEAR_MAX
+#define _TZh_MIN    CARGV_TZ_HOUR_MIN
+#define _TZh_MAX    CARGV_TZ_HOUR_MAX
+
 #define _Y_DEFAULT    CARGV_YEAR_DEFAULT
 #define _M_DEFAULT    CARGV_MONTH_DEFAULT
 #define _D_DEFAULT    CARGV_DAY_DEFAULT
@@ -62,6 +69,64 @@ typedef struct cargv_geocoord_t   _geocoord;
 #define _ms_DEFAULT   CARGV_MILISECOND_DEFAULT
 #define _TZh_DEFAULT  CARGV_TZ_HOUR_DEFAULT
 #define _TZm_DEFAULT  CARGV_TZ_MINUTE_DEFAULT
+
+static const _ymd _YMD_DEFAULT = {
+    _Y_DEFAULT, _M_DEFAULT, _D_DEFAULT
+};
+static const _hms _HMS_DEFAULT = {
+    _h_DEFAULT, _m_DEFAULT, _s_DEFAULT, _ms_DEFAULT
+};
+static const _tz _TZ_DEFAULT = {
+    _TZh_DEFAULT, _TZm_DEFAULT
+};
+const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_DEFAULT;
+
+static const _tz _TZ_0      = {0,0};
+static const _tz _TZ_E_1    = {+1,0};
+static const _tz _TZ_E_2    = {+2,0};
+static const _tz _TZ_E_3    = {+3,0};
+static const _tz _TZ_E_4    = {+4,0};
+static const _tz _TZ_E_5    = {+5,0};
+static const _tz _TZ_E_6    = {+6,0};
+static const _tz _TZ_E_7    = {+7,0};
+static const _tz _TZ_E_8    = {+8,0};
+static const _tz _TZ_E_9    = {+9,0};
+static const _tz _TZ_E_10   = {+10,0};
+static const _tz _TZ_E_11   = {+11,0};
+static const _tz _TZ_E_12   = {+12,0};
+static const _tz _TZ_E_13   = {+13,0};
+static const _tz _TZ_E_14   = {+14,0};
+static const _tz _TZ_W_1    = {-1,0};
+static const _tz _TZ_W_2    = {-2,0};
+static const _tz _TZ_W_3    = {-3,0};
+static const _tz _TZ_W_4    = {-4,0};
+static const _tz _TZ_W_5    = {-5,0};
+static const _tz _TZ_W_6    = {-6,0};
+static const _tz _TZ_W_7    = {-7,0};
+static const _tz _TZ_W_8    = {-8,0};
+static const _tz _TZ_W_9    = {-9,0};
+static const _tz _TZ_W_10   = {-10,0};
+static const _tz _TZ_W_11   = {-11,0};
+static const _tz _TZ_W_12   = {-12,0};
+const struct cargv_timezone_t *CARGV_UTC = &_TZ_0;
+const struct cargv_timezone_t *CARGV_TZ_SOUTH_KOREA = &_TZ_E_9;
+const struct cargv_timezone_t *CARGV_TZ_US_PST = &_TZ_W_8;
+const struct cargv_timezone_t *CARGV_TZ_US_PDT = &_TZ_W_7;
+const struct cargv_timezone_t *CARGV_TZ_US_MST = &_TZ_W_7;
+const struct cargv_timezone_t *CARGV_TZ_US_MDT = &_TZ_W_6;
+const struct cargv_timezone_t *CARGV_TZ_US_CST = &_TZ_W_6;
+const struct cargv_timezone_t *CARGV_TZ_US_CDT = &_TZ_W_5;
+const struct cargv_timezone_t *CARGV_TZ_US_EST = &_TZ_W_5;
+const struct cargv_timezone_t *CARGV_TZ_US_EDT = &_TZ_W_4;
+const struct cargv_timezone_t *CARGV_TZ_CHINA = &_TZ_E_8;
+const struct cargv_timezone_t *CARGV_TZ_XINJIANG = &_TZ_E_6;
+
+static const _geocoord _SEOUL         = {{+37,0,+34,0,0,0},{+126,0,+58,0,0,0}};
+static const _geocoord _SAN_FRANCISCO = {{+37,0,+47,0,0,0},{-122,0,-25,0,0,0}};
+static const _geocoord _BEIJING       = {{+39,0,+55,0,0,0},{+116,0,+23,0,0,0}};
+const struct cargv_geocoord_t *CARGV_SEOUL = &_SEOUL;
+const struct cargv_geocoord_t *CARGV_SAN_FRANCISCO = &_SAN_FRANCISCO;
+const struct cargv_geocoord_t *CARGV_BEIJING = &_BEIJING;
 
 
 /* power of 10 */
@@ -403,55 +468,6 @@ static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
 }
 
 
-static const _ymd _YMD_DEFAULT = {
-    _Y_DEFAULT, _M_DEFAULT, _D_DEFAULT
-};
-static const _hms _HMS_DEFAULT = {
-    _h_DEFAULT, _m_DEFAULT, _s_DEFAULT, _ms_DEFAULT
-};
-static const _tz _TZ_DEFAULT = {
-    _TZh_DEFAULT, _TZm_DEFAULT
-};
-const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_DEFAULT;
-
-static const _tz _TZ_0      = {0,0};
-static const _tz _TZ_E_1    = {+1,0};
-static const _tz _TZ_E_2    = {+2,0};
-static const _tz _TZ_E_3    = {+3,0};
-static const _tz _TZ_E_4    = {+4,0};
-static const _tz _TZ_E_5    = {+5,0};
-static const _tz _TZ_E_6    = {+6,0};
-static const _tz _TZ_E_7    = {+7,0};
-static const _tz _TZ_E_8    = {+8,0};
-static const _tz _TZ_E_9    = {+9,0};
-static const _tz _TZ_E_10   = {+10,0};
-static const _tz _TZ_E_11   = {+11,0};
-static const _tz _TZ_E_12   = {+12,0};
-static const _tz _TZ_E_13   = {+13,0};
-static const _tz _TZ_E_14   = {+14,0};
-static const _tz _TZ_W_1    = {-1,0};
-static const _tz _TZ_W_2    = {-2,0};
-static const _tz _TZ_W_3    = {-3,0};
-static const _tz _TZ_W_4    = {-4,0};
-static const _tz _TZ_W_5    = {-5,0};
-static const _tz _TZ_W_6    = {-6,0};
-static const _tz _TZ_W_7    = {-7,0};
-static const _tz _TZ_W_8    = {-8,0};
-static const _tz _TZ_W_9    = {-9,0};
-static const _tz _TZ_W_10   = {-10,0};
-static const _tz _TZ_W_11   = {-11,0};
-static const _tz _TZ_W_12   = {-12,0};
-const struct cargv_timezone_t *CARGV_UTC = &_TZ_0;
-const struct cargv_timezone_t *CARGV_TZ_SOUTH_KOREA = &_TZ_E_9;
-const struct cargv_timezone_t *CARGV_TZ_US_PST = &_TZ_W_8;
-const struct cargv_timezone_t *CARGV_TZ_US_PDT = &_TZ_W_7;
-const struct cargv_timezone_t *CARGV_TZ_US_MST = &_TZ_W_7;
-const struct cargv_timezone_t *CARGV_TZ_US_MDT = &_TZ_W_6;
-const struct cargv_timezone_t *CARGV_TZ_US_CST = &_TZ_W_6;
-const struct cargv_timezone_t *CARGV_TZ_US_CDT = &_TZ_W_5;
-const struct cargv_timezone_t *CARGV_TZ_US_EST = &_TZ_W_5;
-const struct cargv_timezone_t *CARGV_TZ_US_EDT = &_TZ_W_4;
-
 /* return 1 if the month is leap month, otherwise 0. */
 static _sint __leap(_sint year, _sint month)
 {
@@ -486,7 +502,7 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign;
+    _sint sign, Y;
     _uint y, m, d, n;
 
     /* [+-]YYYYMMDD */
@@ -508,14 +524,15 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
         return 0;
 
     *next = t;
+    Y = sign * (_sint)y;
 
     /* -9999-1-1..+9999-12-31 */
-    if (!(y <= 9999
+    if (!(Y >= _Y_MIN && Y <= _Y_MAX
           && m > 0 && m <= 12
           && d > 0 && d <= __days_of_month(y, m)))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = (_sint)y * sign;
+    val->year = Y;
     val->month = (_sint)m;
     val->day = (_sint)d;
     return (int)(*next - text);
@@ -534,8 +551,8 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign;
-    _uint y, m, n;
+    _sint sign, Y;
+    _uint y, m;
 
     /* [+-]Y[..4]<-/>[M]M */
     if (__read_sign(&sign, &t, (t = text), textend) >= 0
@@ -547,12 +564,13 @@ static int __read_iso8601_YM(_ymd *val, _str *next, _str text, _str textend)
         return 0;
 
     *next = t;
+    Y = sign * (_sint)y;
 
     /* -9999-01..+9999-12 */
-    if (!(y <= 9999 && m > 0 && m <= 12))
+    if (!(Y >= _Y_MIN && Y <= _Y_MAX && m > 0 && m <= 12))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = (_sint)y * sign;
+    val->year = Y;
     val->month = (_sint)m;
     val->day = _D_DEFAULT;
     return (int)(*next - text);
@@ -571,7 +589,7 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign;
+    _sint sign, Y;
     _uint y;
 
     /* [+-]Y[..4] */
@@ -582,12 +600,13 @@ static int __read_iso8601_Y(_ymd *val, _str *next, _str text, _str textend)
         return 0;
         
     *next = t;
+    Y = sign * (_sint)y;
 
     /* -9999..+9999 */
-    if (!(y <= 9999))
+    if (!(Y >= _Y_MIN && Y <= _Y_MAX))
         return CARGV_VAL_OVERFLOW;
 
-    val->year = (_sint)y * sign;
+    val->year = Y;
     val->month = _M_DEFAULT;
     val->day = _D_DEFAULT;
     return (int)(*next - text);
@@ -651,7 +670,7 @@ static int __read_iso8601_Zhm(_tz *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign;
+    _sint sign, H, M;
     _uint h, m, n;
 
     /* <+->hhmm */
@@ -670,13 +689,17 @@ static int __read_iso8601_Zhm(_tz *val, _str *next, _str text, _str textend)
         return 0;
 
     *next = t;
+    H = sign * (_sint)h;
+    M = sign * (_sint)m;
 
-    /* -12:00..+12:00 */
-    if (!((h == 12 && m == 0) || (h < 12 && m < 60)))
+    /* -12:00..+14:00 */
+    if (!((H == _TZh_MIN && M == 0)
+          || (H == _TZh_MAX && M == 0) 
+          || (H > _TZh_MIN && H < _TZh_MAX && M > -60 && M < 60)))
         return CARGV_VAL_OVERFLOW;
 
-    val->hour = sign * (_sint)h;
-    val->minute = sign * (_sint)m;
+    val->hour = H;
+    val->minute = M;
     return (int)(*next - text);
 }
 
@@ -684,10 +707,10 @@ static int __read_iso8601_Zh(_tz *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _sint sign;
+    _sint sign, H;
     _uint h;
 
-    /* <+->h{1..2} */
+    /* <+->H{1..2} */
     if (__read_sign(&sign, &t, (t = text), textend) == 1
         && (r = __read_dec(&h, &t, t, textend)) > 0 && r <= 2) {
     }
@@ -695,12 +718,13 @@ static int __read_iso8601_Zh(_tz *val, _str *next, _str text, _str textend)
         return 0;
 
     *next = t;
+    H = sign * (_sint)h;
 
-    /* -12..+12 */
-    if (!(h <= 12))
+    /* -12..+14 */
+    if (!(H >= _TZh_MIN && H <= _TZh_MAX))
         return CARGV_VAL_OVERFLOW;
 
-    val->hour = sign * (_sint)h;
+    val->hour = H;
     val->minute = 0;
     return (int)(*next - text);
 }

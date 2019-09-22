@@ -49,7 +49,7 @@ typedef double      cargv_real_t;
 
 /* Datetime types */
 struct cargv_timezone_t {
-    cargv_int_t hour;   /* -12..12 */
+    cargv_int_t hour;   /* -12..14 */
     cargv_int_t minute; /* -59..59 */
 };
 
@@ -63,6 +63,11 @@ struct cargv_datetime_t {
     cargv_int_t milisecond; /* 0..999 */
     struct cargv_timezone_t tz;
 };
+
+#define CARGV_YEAR_MIN            (-9999)
+#define CARGV_YEAR_MAX            (+9999)
+#define CARGV_TZ_HOUR_MIN         (-12)
+#define CARGV_TZ_HOUR_MAX         (+14)
 
 #define CARGV_YEAR_DEFAULT        CARGV_SINT_MIN
 #define CARGV_MONTH_DEFAULT       0
@@ -84,6 +89,8 @@ extern const struct cargv_timezone_t *CARGV_TZ_US_CST;
 extern const struct cargv_timezone_t *CARGV_TZ_US_CDT;
 extern const struct cargv_timezone_t *CARGV_TZ_US_EST;
 extern const struct cargv_timezone_t *CARGV_TZ_US_EDT;
+extern const struct cargv_timezone_t *CARGV_TZ_CHINA;
+extern const struct cargv_timezone_t *CARGV_TZ_XINJIANG;
 extern const struct cargv_timezone_t *CARGV_TZ_LOCAL;
 
 
@@ -97,6 +104,10 @@ struct cargv_degree_t {
 struct cargv_geocoord_t {
     struct cargv_degree_t latitude, longitude;
 };
+
+extern const struct cargv_geocoord_t *CARGV_SEOUL;
+extern const struct cargv_geocoord_t *CARGV_SAN_FRANCISCO;
+extern const struct cargv_geocoord_t *CARGV_BEIJING;
 
 
 /* Get cargv version info.

@@ -262,7 +262,7 @@ TEST_F(Test_cargv, uint_overflow)
 TEST_F(Test_cargv, date)
 {
     static const char *args[] = { _name,
-        "10101010", "+1976-06-17", "1976/6/17", "-45-01-23",
+        "10101010", "+1999-06-3", "1999/6/3", "-45-01-23",
         "-1010-01", "1001/01", "-100/2", "+1-2-3",
         "+2019", "0000", "0", "-100", "1",
         "--0102", "--02-03", "--04/05",
@@ -271,8 +271,8 @@ TEST_F(Test_cargv, date)
     #define _HMSZ_DEFAULT CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,CARGV_SECOND_DEFAULT,CARGV_MILISECOND_DEFAULT,*CARGV_TZ_LOCAL
     static const cargv_datetime_t expected[] = {
         {1010,10,10,_HMSZ_DEFAULT},
-        {1976,6,17,_HMSZ_DEFAULT},
-        {1976,6,17,_HMSZ_DEFAULT},
+        {1999,6,3,_HMSZ_DEFAULT},
+        {1999,6,3,_HMSZ_DEFAULT},
         {-45,1,23,_HMSZ_DEFAULT},
         {-1010,1,0,_HMSZ_DEFAULT},
         {1001,1,0,_HMSZ_DEFAULT},
@@ -435,10 +435,11 @@ TEST_F(Test_cargv, time_overflow)
 TEST_F(Test_cargv, timezone)
 {
     static const char *args[] = { _name,
-        "Z", "+00", "+1", "+09:20", "-9:3",
+        "Z", "+00", "+1", "+09:20", "-9:3", "+14:00", "-12", "+1359", "-11:59",
     };
     const cargv_timezone_t expected[] = {
         *CARGV_UTC, *CARGV_UTC, {1,0}, {9,20}, {-9,-3},
+        {14,0}, {-12,0}, {13,59}, {-11,-59},
     };
     cargv_timezone_t v;
     cargv_timezone_t const *e = expected;
@@ -478,7 +479,7 @@ TEST_F(Test_cargv, timezone_error)
 TEST_F(Test_cargv, timezone_overflow)
 {
     static const char *args[] = { _name,
-        "+13", "+1201", "-13", "-1201", "-00:60",
+        "+15", "+1401", "-13", "-1201", "-00:60",
     };
     cargv_timezone_t v;
 
@@ -496,7 +497,8 @@ TEST_F(Test_cargv, timezone_overflow)
 TEST_F(Test_cargv, datetime)
 {
     static const char *args[] = { _name,
-        "+1976-06-17T08:00+9:30",
+        "+1999-06-3T08:00+9:30",
+        "+1999-06-3T08:00+14:0",
         "45-01-23 1:2:3Z",
         "45-01-23 1:2:3",
         "45-01-23",
@@ -511,7 +513,8 @@ TEST_F(Test_cargv, datetime)
         "23:59:59",
     };
     static const cargv_datetime_t expected[] = {
-        {1976,6,17,8,0,0,0,{9,30}},
+        {1999,6,3,8,0,0,0,{9,30}},
+        {1999,6,3,8,0,0,0,{14,0}},
         {45,1,23,1,2,3,0,*CARGV_UTC},
         {45,1,23,1,2,3,0,*CARGV_TZ_LOCAL},
         {45,1,23,CARGV_HOUR_DEFAULT,CARGV_MINUTE_DEFAULT,CARGV_SECOND_DEFAULT,
@@ -556,14 +559,14 @@ TEST_F(Test_cargv, datetime)
 TEST_F(Test_cargv, datetime_error)
 {
     static const char *args[] = { _name,
-        "+1976-06-17T",
-        "+1976-06-17Z",
-        "+1976-13-17T",
-        "+1976-06-17+0900",
-        "+1976-06-17T08:00+9:30a",
-        "T08:00+9:30",
-        "+9:30",
-        "10000",
+        "+1999-06-3T",  // No time
+        "+1999-06-3Z",  // No time
+        "+1999-13-3T",  // No time
+        "+1999-06-3+0900",  // No time
+        "+1999-06-3T08:00+9:30a",  // Redundant character
+        "T08:00+9:30",   // No date
+        "+9:30",         // No time
+        "10000",         // ?
     };
     cargv_datetime_t v;
 
@@ -583,7 +586,7 @@ TEST_F(Test_cargv, datetime_overflow)
     static const char *args[] = { _name,
         "2019-13-23",
         "25:00+9:30",
-        "+1976-13-17T08:00+9:30",
+        "+1999-13-17T08:00+9:30",
         "+2019-2-29T08:00+9:30",
     };
     cargv_datetime_t v;
@@ -602,8 +605,9 @@ TEST_F(Test_cargv, datetime_overflow)
 TEST_F(Test_cargv, local_datetime)
 {
     static const cargv_datetime_t srcs[] = {
-        {1976,6,17,8,10,0,0,{9,30}},
-        {1976,6,17,8,10,0,0,{9,30}},
+        {1999,6,3,8,10,0,0,{9,30}},
+        {1999,6,3,8,10,0,0,{9,30}},
+        {1999,6,3,18,10,0,0,{-9,-30}},
         {2019,1,1,23,59,0,0,{-12,0}},
         {2019,1,1,12,0,0,0,{12,0}},
         {2019,12,31,12,0,0,0,{-12,0}},
@@ -611,10 +615,12 @@ TEST_F(Test_cargv, local_datetime)
         {2016,2,29,18,40,0,0,{-9,-30}},   // leap year
         {2019,3,1,8,10,0,0,{9,30}},
         {2019,2,28,18,40,0,0,{-9,-30}},
+        {2019,3,1,12,0,0,0,{14,0}},
     };
     static const cargv_datetime_t dsts[] = {
-        {1976,6,16,22,40,0,0,*CARGV_UTC},
-        {1976,6,16,13,10,0,0,{-9,-30}},
+        {1999,6,2,22,40,0,0,*CARGV_UTC},
+        {1999,6,2,13,10,0,0,{-9,-30}},
+        {1999,6,4,3,40,0,0,*CARGV_UTC},
         {2019,1,2,23,59,0,0,{12,0}},
         {2018,12,31,12,0,0,0,{-12,0}},
         {2020,1,1,12,0,0,0,{12,0}},
@@ -622,6 +628,7 @@ TEST_F(Test_cargv, local_datetime)
         {2016,3,1,4,10,0,0,*CARGV_UTC},
         {2019,2,28,22,40,0,0,*CARGV_UTC},
         {2019,3,1,4,10,0,0,*CARGV_UTC},
+        {2019,2,28,22,0,0,0,*CARGV_UTC},
     };
     cargv_datetime_t v;
 
@@ -761,10 +768,16 @@ TEST_F(Test_cargv, geocoord)
     static const char *args[] = { _name,
         "-32.3957+13239.57/",
         "+62.3-0",
+        "+3734+12658/",  // Seoul
+        "+3747-12225/",  // San Francisco
+        "+3955+11623/",  // Beijing
     };
     static const cargv_geocoord_t expected[] = {
         {{-32,-395700,0,0,0,0},{132,0,39,570000,0,0}},
         {{62,300000,0,0,0,0},{0,0,0,0,0,0}},
+        *CARGV_SEOUL,
+        *CARGV_SAN_FRANCISCO,
+        *CARGV_BEIJING,
     };
     cargv_geocoord_t v;
     const cargv_geocoord_t *e = expected;
