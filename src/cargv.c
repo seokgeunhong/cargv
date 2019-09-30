@@ -82,32 +82,32 @@ static const _tz _TZ_DEFAULT = {
 const struct cargv_timezone_t *CARGV_TZ_LOCAL = &_TZ_DEFAULT;
 
 static const _tz _TZ_0      = {0,0};
-static const _tz _TZ_E_1    = {+1,0};
-static const _tz _TZ_E_2    = {+2,0};
-static const _tz _TZ_E_3    = {+3,0};
-static const _tz _TZ_E_4    = {+4,0};
-static const _tz _TZ_E_5    = {+5,0};
+/*static const _tz _TZ_E_1    = {+1,0};*/
+/*static const _tz _TZ_E_2    = {+2,0};*/
+/*static const _tz _TZ_E_3    = {+3,0};*/
+/*static const _tz _TZ_E_4    = {+4,0};*/
+/*static const _tz _TZ_E_5    = {+5,0};*/
 static const _tz _TZ_E_6    = {+6,0};
-static const _tz _TZ_E_7    = {+7,0};
+/*static const _tz _TZ_E_7    = {+7,0};*/
 static const _tz _TZ_E_8    = {+8,0};
 static const _tz _TZ_E_9    = {+9,0};
-static const _tz _TZ_E_10   = {+10,0};
-static const _tz _TZ_E_11   = {+11,0};
-static const _tz _TZ_E_12   = {+12,0};
-static const _tz _TZ_E_13   = {+13,0};
-static const _tz _TZ_E_14   = {+14,0};
-static const _tz _TZ_W_1    = {-1,0};
-static const _tz _TZ_W_2    = {-2,0};
-static const _tz _TZ_W_3    = {-3,0};
+/*static const _tz _TZ_E_10   = {+10,0};*/
+/*static const _tz _TZ_E_11   = {+11,0};*/
+/*static const _tz _TZ_E_12   = {+12,0};*/
+/*static const _tz _TZ_E_13   = {+13,0};*/
+/*static const _tz _TZ_E_14   = {+14,0};*/
+/*static const _tz _TZ_W_1    = {-1,0};*/
+/*static const _tz _TZ_W_2    = {-2,0};*/
+/*static const _tz _TZ_W_3    = {-3,0};*/
 static const _tz _TZ_W_4    = {-4,0};
 static const _tz _TZ_W_5    = {-5,0};
 static const _tz _TZ_W_6    = {-6,0};
 static const _tz _TZ_W_7    = {-7,0};
 static const _tz _TZ_W_8    = {-8,0};
-static const _tz _TZ_W_9    = {-9,0};
-static const _tz _TZ_W_10   = {-10,0};
-static const _tz _TZ_W_11   = {-11,0};
-static const _tz _TZ_W_12   = {-12,0};
+/*static const _tz _TZ_W_9    = {-9,0};*/
+/*static const _tz _TZ_W_10   = {-10,0};*/
+/*static const _tz _TZ_W_11   = {-11,0};*/
+/*static const _tz _TZ_W_12   = {-12,0};*/
 const struct cargv_timezone_t *CARGV_UTC = &_TZ_0;
 const struct cargv_timezone_t *CARGV_TZ_SOUTH_KOREA = &_TZ_E_9;
 const struct cargv_timezone_t *CARGV_TZ_US_PST = &_TZ_W_8;
@@ -289,6 +289,7 @@ static int __match_chars_set(
 [in] minc: Minimum match required. Less match returns 0.
 [in] maxc: Maximum match to count. No more match is searched.
 */
+/*
 static int __match_chars_range(
     _str *next,
     _str text, _str textend,
@@ -298,6 +299,7 @@ static int __match_chars_range(
     return __match_chars(&__match_char_range,
         next, text, textend, pattern, patternlen, minc, maxc);
 }
+*/
 
 /* Read a number sign.
 
@@ -529,7 +531,7 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
     /* -9999-1-1..+9999-12-31 */
     if (!(Y >= _Y_MIN && Y <= _Y_MAX
           && m > 0 && m <= 12
-          && d > 0 && d <= __days_of_month(y, m)))
+          && d > 0 && (_sint)d <= __days_of_month(y, m)))
         return CARGV_VAL_OVERFLOW;
 
     val->year = Y;
@@ -645,7 +647,8 @@ static int __read_iso8601_MD(_ymd *val, _str *next, _str text, _str textend)
     *next = t;
 
     /* 1-1..12-31 */
-    if (!(m > 0 && m <= 12 && d > 0 && d <= __days_of_month_this_year(m)))
+    if (!(m > 0 && m <= 12
+          && d > 0 && (_sint)d <= __days_of_month_this_year(m)))
         return CARGV_VAL_OVERFLOW;
 
     val->year = _Y_DEFAULT;
@@ -855,7 +858,7 @@ static int __read_iso8601_h(_hms *val, _str *next, _str text, _str textend)
 {
     int r;
     _str t;
-    _uint h, n;
+    _uint h;
 
     /* [h]h[.hhh] */
     if ((r = __read_dec(&h, &t, (t = text), textend)) > 0 && r <= 2) {
@@ -1104,6 +1107,7 @@ int cargv_text(
     const char **vals, cargv_len_t valc)
 {
     _str *v, *a;
+    (void)name;
 
     a = cargv->args;
     v = vals;
@@ -1123,6 +1127,7 @@ int cargv_oneof(
     _str listend, t, tend;
     _str aend, a;
     int seplen;
+    (void)name;
 
     listend = list + strlen(list);
     seplen = strlen(sep);
@@ -1319,7 +1324,6 @@ int cargv_datetime(
     const char *name,
     struct cargv_datetime_t *vals, cargv_len_t valc)
 {
-    int r;
     _datetime *v;
     _ymd d;
     _hms h;

@@ -9,7 +9,7 @@
 
 
 
-#define _c(a)    (sizeof(a)/sizeof((a)[0]))
+#define _c(a)    (ptrdiff_t(sizeof(a)/sizeof((a)[0])))
 
 
 class Test_cargv : public testing::Test {
