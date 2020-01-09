@@ -5,3 +5,6 @@ out/
 .sconsign.dblite
 *.pyc
 *.stackdump
+
+#
+.vscode/settings.json

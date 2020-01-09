@@ -10,26 +10,19 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "cargv: build x64-linux-gcc",
+            "label": "cargv: build x64-linux-gcc-8-debug",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "target-os=x64-linux", "compiler=gcc",
-                "test", "version",
-            ],
+            "args": ["toolchain=x64-linux-gcc-8+gcc-debug+gcc-warning-4", "test", "version"],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
         },
         {
-            "label": "cargv: clean x64-linux-gcc",
+            "label": "cargv: clean x64-linux-gcc-8",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "--clean",
-                "target-os=x64-linux", "compiler=gcc",
-                "test", "version",
-            ],
+            "args": ["--clean", "toolchain=x64-linux-gcc-8", "test", "version"],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -38,10 +31,7 @@
             "label": "cargv: build x64-windows-mingw-gcc",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "target-os=x64-windows", "compiler=mingw-gcc",
-                "test", "version",
-            ],
+            "args": ["toolchain=x64-windows-mingw-gcc", "test", "version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -50,11 +40,7 @@
             "label": "cargv: clean x64-windows-mingw-gcc",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "--clean",
-                "target-os=x64-windows", "compiler=mingw-gcc",
-                "test", "version",
-            ],
+            "args": ["--clean","toolchain=x64-windows-mingw-gcc","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -63,10 +49,7 @@
             "label": "cargv: build x64-windows-msys-gcc",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "target-os=x64-windows-msys", "compiler=gcc",
-                "test", "version",
-            ],
+            "args": ["toolchain=x64-windows-msys-gcc","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -75,11 +58,7 @@
             "label": "cargv: clean x64-windows-msys-gcc",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "--clean",
-                "target-os=x64-windows-msys", "compiler=gcc",
-                "test", "version",
-            ],
+            "args": ["--clean","toolchain=x64-windows-msys-gcc","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -88,10 +67,7 @@
             "label": "cargv: build x64-linux-clang",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "target-os=x64-linux", "compiler=clang",
-                "test", "version",
-            ],
+            "args": ["toolchain=x64-linux-clang","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -100,11 +76,7 @@
             "label": "cargv: clean x64-linux-clang",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "--clean",
-                "target-os=x64-linux", "compiler=clang",
-                "test", "version",
-            ],
+            "args": ["--clean","toolchain=x64-linux-clang","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -113,10 +85,7 @@
             "label": "cargv: build x64-windows-mingw-clang",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "target-os=x64-windows", "compiler=mingw-clang",
-                "test", "version",
-            ],
+            "args": ["toolchain=x64-windows-mingw-clang","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -125,11 +94,7 @@
             "label": "cargv: clean x64-windows-mingw-clang",
             "type": "shell",
             "command": "scons",
-            "args": [
-                "--clean",
-                "target-os=x64-windows", "compiler=mingw-clang",
-                "test", "version",
-            ],
+            "args": ["--clean","toolchain=x64-windows-mingw-clang","test","version",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"

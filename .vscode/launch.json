@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "cargv: x64-linux-gcc",
+            "name": "cargv: x64-linux-gcc-8",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/out/x64-linux-gcc/test/test-cargv",
+            "program": "${workspaceFolder}/out/x64-linux-gcc-8/test/test-cargv",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
