@@ -1,6 +1,6 @@
 
-#include "cargv.h"
-#include "cargv_version.h"
+#include "cargv/cargv.h"
+#include "cargv/cargv_version.h"
 
 #include <stdio.h>
 #include <memory.h>
