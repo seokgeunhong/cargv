@@ -13,7 +13,7 @@
             "label": "cargv: build x64-linux-gcc-8-debug",
             "type": "shell",
             "command": "scons",
-            "args": ["toolchain=x64-linux-gcc-8+gcc-debug+gcc-warning-4","test"],
+            "args": ["toolchain=x64-linux-gcc-8+gcc-debug+gcc-warnings","test"],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -28,10 +28,10 @@
             "problemMatcher": "$gcc"
         },
         {
-            "label": "cargv: build x64-windows-mingw-gcc",
+            "label": "cargv: build x64-windows-mingw-gcc-debug",
             "type": "shell",
             "command": "scons",
-            "args": ["toolchain=x64-windows-mingw-gcc","test",],
+            "args": ["toolchain=x64-windows-mingw-gcc+gcc-debug+gcc-warnings","test",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"
@@ -46,10 +46,10 @@
             "problemMatcher": "$gcc"
         },
         {
-            "label": "cargv: build x64-windows-msys-gcc",
+            "label": "cargv: build x64-windows-msys-gc-debug",
             "type": "shell",
             "command": "scons",
-            "args": ["toolchain=x64-windows-msys-gcc","test",],
+            "args": ["toolchain=x64-windows-msys-gcc+gcc-debug+gcc-warnings","test",],
             "group": "build",
             "presentation": {"reveal": "silent"},
             "problemMatcher": "$gcc"

@@ -161,9 +161,9 @@ static int __match_str(
     _str pattern, _len patternlen)
 {
     if ((textend - text) >= patternlen
-        && memcmp(text, pattern, patternlen) == 0) {
+        && memcmp(text, pattern, (size_t)patternlen) == 0) {
         *next = text + patternlen;
-        return patternlen;
+        return (int)patternlen;
     }
     return 0;
 }
@@ -185,7 +185,7 @@ static int __unmatch_str(
     _str t;
 
     for (t = text; textend-t >= patternlen; ++t) {
-        if (memcmp(t, pattern, patternlen) == 0)
+        if (memcmp(t, pattern, (size_t)patternlen) == 0)
             return (int)((*next = t) - text);
     }
     return (int)((*next = textend) - text);
@@ -247,7 +247,7 @@ static int __match_chars(
     _str *next,
     _str text, _str textend,
     _str pattern, _len patternlen,
-    int minc, int maxc)
+    _len minc, _len maxc)
 {
     _str t, tend;
 
@@ -274,7 +274,7 @@ static int __match_chars_set(
     _str *next,
     _str text, _str textend,
     _str pattern, _len patternlen,
-    int minc, int maxc)
+    _len minc, _len maxc)
 {
     return __match_chars(&__match_char_set,
         next, text, textend, pattern, patternlen, minc, maxc);
@@ -331,7 +331,7 @@ static int __read_sign(_sint *val, _str *next, _str text, _str textend)
 static int __read_digit_dec(_uint *val, _str *next, _str text, _str textend)
 {
     if (text < textend && __match_char_range(*text, "09", 2) > 0) {
-        *val = *text++ - '0';
+        *val = (_uint)(*text++ - '0');
         *next = text;
         return 1;
     }
@@ -471,19 +471,19 @@ static int __read_uint_dec(_uint *val, _str *next, _str text, _str textend)
 
 
 /* return 1 if the month is leap month, otherwise 0. */
-static _sint __leap(_sint year, _sint month)
+static _sint __leap(_sint year, _uint month)
 {
     return month == 2 && ((!(year % 4) && (year % 100)) || !(year % 400));
 }
 
-static _sint __days_of_month_this_year(_sint month)
+static _sint __days_of_month_this_year(_uint month)
 {
     static const _sint days_of_month[] = {
         0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
     return days_of_month[month];
 }
-static _sint __days_of_month(_sint year, _sint month)
+static _sint __days_of_month(_sint year, _uint month)
 {
     static const _sint days_of_month[] = {
         0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -531,7 +531,7 @@ static int __read_iso8601_YMD(_ymd *val, _str *next, _str text, _str textend)
     /* -9999-1-1..+9999-12-31 */
     if (!(Y >= _Y_MIN && Y <= _Y_MAX
           && m > 0 && m <= 12
-          && d > 0 && (_sint)d <= __days_of_month(y, m)))
+          && d > 0 && (_sint)d <= __days_of_month(Y, m)))
         return CARGV_VAL_OVERFLOW;
 
     val->year = Y;
@@ -652,8 +652,8 @@ static int __read_iso8601_MD(_ymd *val, _str *next, _str text, _str textend)
         return CARGV_VAL_OVERFLOW;
 
     val->year = _Y_DEFAULT;
-    val->month = m;
-    val->day = d;
+    val->month = (_sint)m;
+    val->day = (_sint)d;
     return (int)(*next - text);
 }
 
@@ -920,7 +920,7 @@ static int __read_iso6709_degree(
     /* D[..3][<.,>D[..6]] */
     if (rn >= 1 && rn <= 3 && rf <= 6) {
         d = (_sint)n;
-        df = f / __p10(rf-6) * __p10(6-rf);
+        df = (_sint)f / __p10(rf-6) * __p10(6-rf);
         m = mf = 0;
         s = sf = 0;
     }
@@ -929,7 +929,7 @@ static int __read_iso6709_degree(
         d = (_sint)n / 100;
         df = 0;
         m = (_sint)n % 100;
-        mf = f / __p10(rf-4) * __p10(4-rf);
+        mf = (_sint)f / __p10(rf-4) * __p10(4-rf);
         s = sf = 0;
     }
     /* [D]DDMMSS[<.,>S[..2]] */
@@ -939,7 +939,7 @@ static int __read_iso6709_degree(
         m = (_sint)n / 100 % 100;
         mf = 0;
         s = (_sint)n % 100;
-        sf = f / __p10(rf-2) * __p10(2-rf);
+        sf = (_sint)f / __p10(rf-2) * __p10(2-rf);
     }
     else
         return CARGV_VAL_OVERFLOW;
@@ -1126,11 +1126,11 @@ int cargv_oneof(
     _str *val, *arg;
     _str listend, t, tend;
     _str aend, a;
-    int seplen;
+    _len seplen;
     (void)name;
 
     listend = list + strlen(list);
-    seplen = strlen(sep);
+    seplen = (_len)strlen(sep);
 
     val = vals;
     arg = cargv->args;
@@ -1424,18 +1424,16 @@ enum cargv_err_t cargv_local_datetime(
     if (day > 0) {  /* date included */
         day += hour / 24 - 1;
         if (day < 1) {
-            month -= 1;
-            if (month < 1) {
+            if (--month < 1) {
                 year -= 1;
                 if (year < -9999)
                     return CARGV_VAL_OVERFLOW;
                 month = 12;
             }
-            day = days_of_month[month] + __leap(year, month);
+            day = days_of_month[month] + __leap(year, (_uint)month);
         }
-        else if (day > days_of_month[month] + __leap(year, month)) {
-            month += 1;
-            if (month > 12) {
+        else if (day > days_of_month[month] + __leap(year, (_uint)month)) {
+            if (++month > 12) {
                 year += 1;
                 if (year > 9999)
                     return CARGV_VAL_OVERFLOW;

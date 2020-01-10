@@ -53,10 +53,10 @@
 
 #ifdef __cplusplus
   #define __CARGV_VERSION_NULBER(m, n, p, d)  \
-      (static_cast<uint32_t>(m)<<24 | static_cast<uint32_t>(n)<<16 | static_cast<uint32_t>(p)<<8 | static_cast<uint32_t>(d))
+      (uint32_t(m)<<24 | uint32_t(n)<<16 | uint32_t(p)<<8 | uint32_t(d))
 #else
-#define __CARGV_VERSION_NULBER(m, n, p, d)  \
-    ((uint32_t)(m)<<24 | (uint32_t)(n)<<16 | (uint32_t)(p)<<8 | (uint32_t)(d))
+  #define __CARGV_VERSION_NULBER(m, n, p, d)  \
+      ((uint32_t)(m)<<24 | (uint32_t)(n)<<16 | (uint32_t)(p)<<8 | (uint32_t)(d))
 #endif
 
 #define __CARGV_VERSION_STATE_STRING(m, n, p, s, r) \
